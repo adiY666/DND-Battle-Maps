@@ -5,13 +5,13 @@ import tabletop.main.ToolType;
 
 /**
  * Represents the active editing state instance.
- * <p></p>
- * Tracks the current active tool for this tabletop.state.ToolState.
+ * Tracks the current active tool for the tabletop.
  *
  * @author Adi
  */
 public class ToolState {
 
+    // Active Selections
     private ToolType currentTool;
     private DrawingSubtool drawingSubtool;
     private Integer selectedTokenIdentifier;
@@ -19,11 +19,26 @@ public class ToolState {
     private Integer hoveredTemplateIdentifier;
     private Integer selectedPinIndex;
     private Integer selectedDrawingIndex;
+
+    // Hover State
     private Double hoverLogicalX;
     private Double hoverLogicalY;
     private boolean isHoverValid;
 
+    // Drawing Settings
+    private String currentDrawingColor = "Black";
+    private int currentDrawingStrokeWidth = 5;
+    private double currentDrawingOpacity = 1.0;
+
+    // Template/Ruler Settings
+    private String defaultTemplateType = "circle";
+    private String defaultTemplateColor = "Yellow";
+    private double defaultTemplatePrimarySize = 15.0;
+    private double defaultTemplateSecondarySize = 15.0;
+    private double defaultTemplateAngle = 0.0;
+
     public ToolState() {
+        super();
         this.currentTool = ToolType.TOKEN;
         this.drawingSubtool = DrawingSubtool.PEN;
         this.selectedTokenIdentifier = null;
@@ -113,4 +128,67 @@ public class ToolState {
         this.isHoverValid = hoverValid;
     }
 
+    public String getCurrentDrawingColor() {
+        return this.currentDrawingColor;
+    }
+
+    public void setCurrentDrawingColor(String currentDrawingColor) {
+        this.currentDrawingColor = currentDrawingColor;
+    }
+
+    public int getCurrentDrawingStrokeWidth() {
+        return this.currentDrawingStrokeWidth;
+    }
+
+    public void setCurrentDrawingStrokeWidth(int currentDrawingStrokeWidth) {
+        this.currentDrawingStrokeWidth = currentDrawingStrokeWidth;
+    }
+
+    public double getCurrentDrawingOpacity() {
+        return this.currentDrawingOpacity;
+    }
+
+    public void setCurrentDrawingOpacity(double currentDrawingOpacity) {
+        this.currentDrawingOpacity = currentDrawingOpacity;
+    }
+
+    public String getDefaultTemplateType() {
+        return this.defaultTemplateType;
+    }
+
+    public void setDefaultTemplateType(String defaultTemplateType) {
+        this.defaultTemplateType = defaultTemplateType;
+    }
+
+    public String getDefaultTemplateColor() {
+        return this.defaultTemplateColor;
+    }
+
+    public void setDefaultTemplateColor(String defaultTemplateColor) {
+        this.defaultTemplateColor = defaultTemplateColor;
+    }
+
+    public double getDefaultTemplatePrimarySize() {
+        return this.defaultTemplatePrimarySize;
+    }
+
+    public void setDefaultTemplatePrimarySize(double defaultTemplatePrimarySize) {
+        this.defaultTemplatePrimarySize = defaultTemplatePrimarySize;
+    }
+
+    public double getDefaultTemplateSecondarySize() {
+        return this.defaultTemplateSecondarySize;
+    }
+
+    public void setDefaultTemplateSecondarySize(double defaultTemplateSecondarySize) {
+        this.defaultTemplateSecondarySize = defaultTemplateSecondarySize;
+    }
+
+    public double getDefaultTemplateAngle() {
+        return this.defaultTemplateAngle;
+    }
+
+    public void setDefaultTemplateAngle(double defaultTemplateAngle) {
+        this.defaultTemplateAngle = defaultTemplateAngle;
+    }
 }

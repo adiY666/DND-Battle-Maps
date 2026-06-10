@@ -129,7 +129,7 @@ class RenderEngine {
 
             Color outlineColor = new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 200);
             if(java.util.Objects.equals(toolState.getSelectedTemplateIdentifier(), templateModel.getIdentifier())) {
-                outlineColor = Color.YELLOW;
+                outlineColor = Color.YELLOW; // Highlight if selected
             }
 
             if("circle".equals(templateModel.getGeometryType())) {
@@ -139,6 +139,23 @@ class RenderEngine {
                 vectorGraphics.setColor(outlineColor);
                 vectorGraphics.setStroke(new BasicStroke(3));
                 vectorGraphics.draw(new Ellipse2D.Double(screenPosition.getCoordinateHorizontal() - radiusPixels, screenPosition.getCoordinateVertical() - radiusPixels, radiusPixels * 2, radiusPixels * 2));
+
+            } else if("square".equals(templateModel.getGeometryType())) {
+                double widthPixels = (templateModel.getPrimarySize() / 5.0) * cellDimension;
+                double heightPixels = (templateModel.getSecondarySize() / 5.0) * cellDimension;
+
+                AffineTransform originalTransform = vectorGraphics.getTransform();
+                vectorGraphics.translate(screenPosition.getCoordinateHorizontal(), screenPosition.getCoordinateVertical());
+                vectorGraphics.rotate(Math.toRadians(templateModel.getHeadingAngle()));
+
+                Rectangle2D.Double centeredRect = new Rectangle2D.Double(-widthPixels / 2.0, -heightPixels / 2.0, widthPixels, heightPixels);
+                vectorGraphics.setColor(fillColor);
+                vectorGraphics.fill(centeredRect);
+                vectorGraphics.setColor(outlineColor);
+                vectorGraphics.setStroke(new BasicStroke(3));
+                vectorGraphics.draw(centeredRect);
+
+                vectorGraphics.setTransform(originalTransform);
 
             } else if("cone".equals(templateModel.getGeometryType())) {
                 double lengthPixels = (templateModel.getPrimarySize() / 5.0) * cellDimension;
@@ -163,6 +180,10 @@ class RenderEngine {
                 vectorGraphics.draw(rectangle);
                 vectorGraphics.setTransform(originalTransform);
             }
+
+            // Draw a tiny anchor point at the origin so the user knows where to click to select/drag it
+            vectorGraphics.setColor(outlineColor);
+            vectorGraphics.fillOval((int) screenPosition.getCoordinateHorizontal() - 4, (int) screenPosition.getCoordinateVertical() - 4, 8, 8);
         }
     }
 

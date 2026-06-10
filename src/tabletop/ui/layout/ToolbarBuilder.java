@@ -1,21 +1,19 @@
 package tabletop.ui.layout;
 
-import tabletop.main.ApplicationCore;
-import tabletop.model.TokenModel;
-import tabletop.state.Coordinate;
-import tabletop.state.DataState;
-import tabletop.util.FileUtility;
-
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionListener;
 import java.io.File;
+import javax.imageio.ImageIO;
+
+import tabletop.main.ApplicationCore;
+import tabletop.state.DataState;
+import tabletop.state.Coordinate;
+import tabletop.model.TokenModel;
+import tabletop.ui.theme.ColorPalette;
+import tabletop.ui.core.ToggleSwitch;
 
 /**
- * Represents the toolbar construction instance.
- * <p></p>
- * Assembles the top menu actions for this tabletop.ui.layout.ToolbarBuilder.
+ * Builds the top main menu toolbar.
  *
  * @author Adi
  */
@@ -23,78 +21,62 @@ public class ToolbarBuilder {
 
     private final ApplicationCore applicationCore;
 
+    // We now use the custom ToggleSwitch
+    public static ToggleSwitch snapCheckBox;
+
     public ToolbarBuilder(ApplicationCore applicationCore) {
         super();
         this.applicationCore = applicationCore;
     }
 
-    /**
-     * Builds the final toolbar.
-     *
-     * @return the ready toolbar component
-     */
-    public JToolBar buildToolbar() {
-        JToolBar mainToolbar = new JToolBar();
-        mainToolbar.setFloatable(false);
-        mainToolbar.setBackground(new Color(43, 43, 43));
+    public JPanel buildToolbar() {
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        toolbar.setBackground(ColorPalette.TOOLBAR_BACKGROUND);
 
-        JButton buttonBackground = this.createButton("Background", event -> this.handleBackgroundLoad());
-        JButton buttonAddToken = this.createButton("+ Miniature", event -> this.handleTokenAdd(), new Color(76, 175, 80));
-        JButton buttonSave = this.createButton("Save", event -> this.handleSave());
-        JButton buttonLoad = this.createButton("Load", event -> this.handleLoad());
+        JButton loadMapBtn = new JButton("Load Map");
+        loadMapBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
+        loadMapBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        loadMapBtn.setFocusPainted(false);
+        loadMapBtn.addActionListener(e -> this.handleLoadMap());
 
-        JCheckBox checkSnapping = new JCheckBox("Snap to Grid", this.applicationCore.getDataState().isGridSnapping());
-        checkSnapping.setBackground(mainToolbar.getBackground());
-        checkSnapping.setForeground(Color.WHITE);
-        checkSnapping.addActionListener(event -> this.applicationCore.getDataState().setGridSnapping(checkSnapping.isSelected()));
+        JButton addMiniBtn = new JButton("Add Miniature");
+        addMiniBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
+        addMiniBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        addMiniBtn.setFocusPainted(false);
+        addMiniBtn.addActionListener(e -> this.handleTokenAdd());
 
-        mainToolbar.add(buttonBackground);
-        mainToolbar.addSeparator();
-        mainToolbar.add(buttonAddToken);
-        mainToolbar.addSeparator();
-        mainToolbar.add(buttonSave);
-        mainToolbar.add(buttonLoad);
-        mainToolbar.addSeparator();
-        mainToolbar.add(checkSnapping);
+        // Uses the new custom slider switch component
+        snapCheckBox = new ToggleSwitch("Snap to Grid (S)");
+        snapCheckBox.setBackground(ColorPalette.TOOLBAR_BACKGROUND);
+        snapCheckBox.setForeground(ColorPalette.TEXT_LIGHT);
+        snapCheckBox.setSelected(this.applicationCore.getDataState().isSnapToGrid());
+        snapCheckBox.addActionListener(e -> {
+            this.applicationCore.getDataState().setSnapToGrid(snapCheckBox.isSelected());
+        });
 
-        return mainToolbar;
+        toolbar.add(loadMapBtn);
+        toolbar.add(addMiniBtn);
+        toolbar.add(snapCheckBox);
+
+        return toolbar;
     }
 
-    private JButton createButton(String labelText, ActionListener actionListener) {
-        return this.createButton(labelText, actionListener, null);
-    }
-
-    private JButton createButton(String labelText, ActionListener actionListener, Color backgroundColor) {
-        JButton newButton = new JButton(labelText);
-        newButton.addActionListener(actionListener);
-        newButton.setFocusable(false);
-        if (backgroundColor != null) {
-            newButton.setBackground(backgroundColor);
-            newButton.setForeground(Color.WHITE);
-            newButton.setFont(newButton.getFont().deriveFont(Font.BOLD));
-        }
-        return newButton;
-    }
-
-    private void handleBackgroundLoad() {
+    private void handleLoadMap() {
         JFileChooser fileChooser = new JFileChooser();
-        if (fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
+        if(fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
             this.applicationCore.getDataState().setBackgroundFilepath(fileChooser.getSelectedFile().getAbsolutePath());
-            this.applicationCore.getDataState().setPanHorizontal(0.0);
-            this.applicationCore.getDataState().setPanVertical(0.0);
-            this.applicationCore.getDataState().setZoomLevel(1.0);
             this.applicationCore.refreshDisplay();
         }
     }
 
     private void handleTokenAdd() {
         JFileChooser fileChooser = new JFileChooser();
-        if (fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
+        if(fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
             try {
                 String imagePath = fileChooser.getSelectedFile().getAbsolutePath();
                 java.awt.image.BufferedImage originalImage = ImageIO.read(new File(imagePath));
                 String characterName = JOptionPane.showInputDialog("Enter character's name:", "Miniature");
-                if (characterName == null) characterName = "Mini";
+                if(characterName == null) characterName = "Mini";
 
                 DataState dataState = this.applicationCore.getDataState();
                 Coordinate logicalPosition = dataState.convertScreenToLogical(this.applicationCore.getCanvasPanel().getWidth() / 2, this.applicationCore.getCanvasPanel().getHeight() / 2);
@@ -110,38 +92,16 @@ public class ToolbarBuilder {
                 this.applicationCore.getToolState().setSelectedTokenIdentifier(newIdentifier);
                 this.applicationCore.refreshDisplay();
 
-                // NEW: Trigger the token tab to update its list dynamically
-                if (this.applicationCore.onTokenListChanged != null) {
+                if(this.applicationCore.onTokenListChanged != null) {
                     this.applicationCore.onTokenListChanged.run();
                 }
+                if(this.applicationCore.onSelectionChanged != null) {
+                    this.applicationCore.onSelectionChanged.run();
+                }
 
-            } catch (Exception exception) {
+            } catch(Exception exception) {
                 exception.printStackTrace();
             }
         }
     }
-
-    private void handleSave() {
-        JFileChooser fileChooser = new JFileChooser();
-        if (fileChooser.showSaveDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
-            FileUtility fileUtility = new FileUtility();
-            fileUtility.saveState(this.applicationCore.getDataState(), new File(fileChooser.getSelectedFile() + ".sav"));
-        }
-    }
-
-    private void handleLoad() {
-        JFileChooser fileChooser = new JFileChooser();
-        if (fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
-            FileUtility fileUtility = new FileUtility();
-            DataState loadedState = fileUtility.loadState(fileChooser.getSelectedFile());
-            if (loadedState != null) {
-                // To safely swap the datastate, a setter in tabletop.main.ApplicationCore would be used,
-                // but since fields are final to meet constraints, we map the properties over.
-                // Simplified implementation restores basic map info.
-                this.applicationCore.getDataState().setBackgroundFilepath(loadedState.getBackgroundFilepath());
-                this.applicationCore.refreshDisplay();
-            }
-        }
-    }
-
 }

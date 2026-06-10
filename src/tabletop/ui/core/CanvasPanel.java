@@ -16,15 +16,21 @@ public class CanvasPanel extends JPanel {
 
     private final ApplicationCore applicationCore;
     private final RenderEngine renderEngine;
+    private final TemplateEditorOverlay editorOverlay;
 
     public CanvasPanel(ApplicationCore applicationCore) {
         super();
+        this.setLayout(null); // Critical: Allows the floating tab to anchor dynamically
+
         this.applicationCore = applicationCore;
         this.renderEngine = new RenderEngine(this.applicationCore);
 
         this.setBackground(ColorPalette.BACKGROUND_DARK);
         this.setFocusable(true);
         this.requestFocusInWindow();
+
+        this.editorOverlay = new TemplateEditorOverlay(this.applicationCore);
+        this.add(this.editorOverlay);
 
         InteractionController interactionController = new InteractionController(this.applicationCore);
         this.addMouseListener(interactionController);
@@ -36,5 +42,6 @@ public class CanvasPanel extends JPanel {
     protected void paintComponent(Graphics renderGraphics) {
         super.paintComponent(renderGraphics);
         this.renderEngine.renderAll(renderGraphics, this.getWidth(), this.getHeight());
+        this.editorOverlay.updateOverlayPositionAndData();
     }
 }

@@ -22,6 +22,7 @@ public class ApplicationCore {
     public Runnable onTokenListChanged;
     public Runnable onSelectionChanged;
     public Runnable onEffectsChanged;
+    public Runnable onTemplateSelectionChanged;
 
     public ApplicationCore() {
         super();

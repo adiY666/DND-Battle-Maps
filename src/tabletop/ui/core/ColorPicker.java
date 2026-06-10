@@ -15,8 +15,10 @@ public class ColorPicker extends JButton {
 
     private String selectedColorName = "Red";
     private final ColorUtility colorUtility;
-    // Using the colors from your original Python script
     private final String[] availableColors = {"Red", "Green", "Blue", "Yellow", "Purple", "Orange", "Black", "White", "Cyan", "Magenta"};
+
+    // NEW: Callback for live updates
+    public Runnable onColorChanged;
 
     public ColorPicker() {
         super("Select Color: Red");
@@ -40,14 +42,17 @@ public class ColorPicker extends JButton {
             colorBtn.setBackground(this.colorUtility.retrieveColor(colorName));
             colorBtn.setToolTipText(colorName);
             colorBtn.setFocusPainted(false);
-
-            // Add a subtle border
             colorBtn.setBorder(BorderFactory.createLineBorder(ColorPalette.BACKGROUND_LIGHT));
 
             colorBtn.addActionListener(ev -> {
                 this.selectedColorName = colorName;
                 this.setText("Select Color: " + colorName);
                 popup.setVisible(false);
+
+                // NEW: Trigger the callback when a color is clicked
+                if(this.onColorChanged != null) {
+                    this.onColorChanged.run();
+                }
             });
             popup.add(colorBtn);
         }

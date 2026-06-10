@@ -31,6 +31,7 @@ public class DataState implements java.io.Serializable {
     private int nextTokenIdentifier;
     private int nextTemplateIdentifier;
     private int nextPinIdentifier;
+    private boolean snapToGrid = true;
 
     public DataState() {
         this.zoomLevel = 1.0;
@@ -193,4 +194,11 @@ public class DataState implements java.io.Serializable {
         this.nextPinIdentifier = nextPinIdentifier;
     }
 
+    public boolean isSnapToGrid() {
+        return this.snapToGrid;
+    }
+
+    public void setSnapToGrid(boolean snapToGrid) {
+        this.snapToGrid = snapToGrid;
+    }
 }

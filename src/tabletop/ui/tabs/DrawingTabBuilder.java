@@ -1,19 +1,16 @@
 package tabletop.ui.tabs;
 
+import javax.swing.*;
+import java.awt.*;
 import tabletop.main.ApplicationCore;
 import tabletop.main.DrawingSubtool;
-
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
-import javax.swing.JButton;
-import javax.swing.JPanel;
-import javax.swing.JRadioButton;
-import javax.swing.border.TitledBorder;
+import tabletop.main.ToolType;
+import tabletop.state.ToolState;
+import tabletop.ui.theme.ColorPalette;
+import tabletop.ui.core.ColorPicker;
 
 /**
- * Represents the drawing tab construction instance.
- * <p></p>
- * Assembles the vector drawing tools for this tabletop.ui.tabs.DrawingTabBuilder.
+ * Represents the drawing tools tab construction instance.
  *
  * @author Adi
  */
@@ -26,46 +23,93 @@ public class DrawingTabBuilder {
         this.applicationCore = applicationCore;
     }
 
-    /**
-     * Builds the tab interface.
-     *
-     * @return the tab panel component
-     */
     public JPanel buildTab() {
-        JPanel tabContainer = new JPanel();
-        tabContainer.setLayout(new BoxLayout(tabContainer, BoxLayout.Y_AXIS));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
+        panel.setBackground(ColorPalette.BACKGROUND_DARK);
 
-        JPanel toolsPanel = new JPanel();
-        toolsPanel.setLayout(new BoxLayout(toolsPanel, BoxLayout.Y_AXIS));
-        toolsPanel.setBorder(new TitledBorder("Tools"));
+        ToolState toolState = this.applicationCore.getToolState();
 
-        ButtonGroup buttonGroup = new ButtonGroup();
-        JRadioButton radioPen = new JRadioButton("Pen Tool", true);
-        JRadioButton radioEraserClick = new JRadioButton("Object Eraser (Click)");
-        JRadioButton radioEraserBrush = new JRadioButton("Brush Eraser (Wipe)");
+        // 1. Pen vs Eraser Toggle
+        JPanel toolPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        toolPanel.setBackground(ColorPalette.BACKGROUND_DARK);
 
-        buttonGroup.add(radioPen);
-        buttonGroup.add(radioEraserClick);
-        buttonGroup.add(radioEraserBrush);
+        JButton penBtn = new JButton("Pen");
+        JButton eraserBtn = new JButton("Eraser");
 
-        radioPen.addActionListener(event -> this.applicationCore.getToolState().setDrawingSubtool(DrawingSubtool.PEN));
-        radioEraserClick.addActionListener(event -> this.applicationCore.getToolState().setDrawingSubtool(DrawingSubtool.ERASE_CLICK));
-        radioEraserBrush.addActionListener(event -> this.applicationCore.getToolState().setDrawingSubtool(DrawingSubtool.ERASE_BRUSH));
+        Runnable updateButtons = () -> {
+            boolean isPen = toolState.getDrawingSubtool() == null || toolState.getDrawingSubtool() == DrawingSubtool.PEN;
+            penBtn.setBackground(isPen ? ColorPalette.BUTTON_SUCCESS : ColorPalette.LIST_ROW_BACKGROUND);
+            eraserBtn.setBackground(!isPen ? ColorPalette.BUTTON_SUCCESS : ColorPalette.LIST_ROW_BACKGROUND);
+        };
 
-        toolsPanel.add(radioPen);
-        toolsPanel.add(radioEraserClick);
-        toolsPanel.add(radioEraserBrush);
-
-        JButton buttonClear = new JButton("Clear All Drawings");
-        buttonClear.addActionListener(event -> {
-            this.applicationCore.getDataState().getCanvasDrawings().clear();
-            this.applicationCore.refreshDisplay();
+        penBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        penBtn.setFocusPainted(false);
+        penBtn.addActionListener(e -> {
+            toolState.setCurrentTool(ToolType.DRAWING); // Re-activate drawing if cancelled
+            toolState.setDrawingSubtool(DrawingSubtool.PEN);
+            updateButtons.run();
         });
 
-        tabContainer.add(toolsPanel);
-        tabContainer.add(buttonClear);
+        eraserBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        eraserBtn.setFocusPainted(false);
+        eraserBtn.addActionListener(e -> {
+            toolState.setCurrentTool(ToolType.DRAWING); // Re-activate drawing if cancelled
+            toolState.setDrawingSubtool(DrawingSubtool.ERASER);
+            updateButtons.run();
+        });
 
-        return tabContainer;
+        updateButtons.run();
+        toolPanel.add(penBtn);
+        toolPanel.add(eraserBtn);
+        panel.add(toolPanel);
+
+        // 2. Color Picker
+        JPanel colorPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        colorPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+        JLabel colorLabel = new JLabel("Paint Color:");
+        colorLabel.setForeground(ColorPalette.TEXT_LIGHT);
+        ColorPicker colorPicker = new ColorPicker();
+        colorPicker.onColorChanged = () -> toolState.setCurrentDrawingColor(colorPicker.getSelectedColor());
+        colorPanel.add(colorLabel);
+        colorPanel.add(colorPicker);
+        panel.add(colorPanel);
+
+        // 3. Stroke Width (Size)
+        JPanel widthPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        widthPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+        JLabel widthLabel = new JLabel("Thickness:");
+        widthLabel.setForeground(ColorPalette.TEXT_LIGHT);
+        JSlider widthSlider = new JSlider(1, 20, toolState.getCurrentDrawingStrokeWidth());
+        widthSlider.setBackground(ColorPalette.BACKGROUND_DARK);
+        widthSlider.addChangeListener(e -> toolState.setCurrentDrawingStrokeWidth(widthSlider.getValue()));
+        widthPanel.add(widthLabel);
+        widthPanel.add(widthSlider);
+        panel.add(widthPanel);
+
+        // 4. Opacity (See-through)
+        JPanel opacityPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        opacityPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+        JLabel opacityLabel = new JLabel("Opacity:");
+        opacityLabel.setForeground(ColorPalette.TEXT_LIGHT);
+        JSlider opacitySlider = new JSlider(10, 100, (int) (toolState.getCurrentDrawingOpacity() * 100));
+        opacitySlider.setBackground(ColorPalette.BACKGROUND_DARK);
+        opacitySlider.addChangeListener(e -> toolState.setCurrentDrawingOpacity(opacitySlider.getValue() / 100.0));
+        opacityPanel.add(opacityLabel);
+        opacityPanel.add(opacitySlider);
+        panel.add(opacityPanel);
+
+        // 5. Clear Drawings Button
+        JButton clearBtn = new JButton("Clear Map Drawings");
+        clearBtn.setBackground(ColorPalette.BUTTON_DANGER);
+        clearBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        clearBtn.setFocusPainted(false);
+        clearBtn.addActionListener(e -> {
+            this.applicationCore.getDataState().getCanvasDrawings().clear();
+            toolState.setCurrentTool(ToolType.TOKEN); // Stop drawing mode, revert to drag/pan
+            this.applicationCore.refreshDisplay();
+        });
+        panel.add(clearBtn);
+
+        return panel;
     }
-
 }
