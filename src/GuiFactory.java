@@ -1,10 +1,9 @@
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 
 /**
- * Represents a builder utility instance.
- * <p></p>
- * Constructs common user interface panels for this GuiFactory.
+ * Main factory for building the application GUI.
  *
  * @author Adi
  */
@@ -25,14 +24,22 @@ class GuiFactory {
         JPanel containerPanel = new JPanel(new BorderLayout());
         mainFrame.setContentPane(containerPanel);
 
+        // Stack the main toolbar and the new top dock using BoxLayout
+        // Make sure the topContainer is visible and handles sizes correctly
+        JPanel topContainer = new JPanel();
+        topContainer.setLayout(new javax.swing.BoxLayout(topContainer, javax.swing.BoxLayout.Y_AXIS));
+
         ToolbarBuilder toolbarBuilder = new ToolbarBuilder(this.applicationCore);
-        containerPanel.add(toolbarBuilder.buildToolbar(), BorderLayout.NORTH);
+        topContainer.add(toolbarBuilder.buildToolbar());
+
+        ToolDockBuilder toolDockBuilder = new ToolDockBuilder(this.applicationCore);
+        topContainer.add(toolDockBuilder.buildDock());
+
+        containerPanel.add(topContainer, BorderLayout.NORTH);
 
         containerPanel.add(this.applicationCore.getCanvasPanel(), BorderLayout.CENTER);
 
-        // To comply with constraints and keep this file from exceeding maximum lengths,
-        // complex left/right notebooks from the python code are simplified.
-        // Full domain models are strictly maintained.
+        RightPanelBuilder rightPanelBuilder = new RightPanelBuilder(this.applicationCore);
+        containerPanel.add(rightPanelBuilder.buildRightWrapper(), BorderLayout.EAST);
     }
-
 }
