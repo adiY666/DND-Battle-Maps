@@ -1,7 +1,5 @@
 /**
  * Represents the primary engine instance.
- * <p></p>
- * Orchestrates the user interface and data state for this ApplicationCore.
  *
  * @author Adi
  */
@@ -11,6 +9,9 @@ class ApplicationCore {
     private final ToolState toolState;
     private final MainFrame mainFrame;
     private final CanvasPanel canvasPanel;
+
+    // NEW: Callback to trigger list refreshes across panels
+    public Runnable onTokenListChanged;
 
     public ApplicationCore() {
         super();
@@ -52,5 +53,4 @@ class ApplicationCore {
     public CanvasPanel getCanvasPanel() {
         return this.canvasPanel;
     }
-
 }

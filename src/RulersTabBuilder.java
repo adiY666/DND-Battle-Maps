@@ -40,7 +40,7 @@ class RulersTabBuilder {
 
     private JButton createSpawnButton(String labelText, String templateType) {
         JButton spawnButton = new JButton(labelText);
-        spawnButton.setBackground(new Color(33, 150, 243));
+        spawnButton.setBackground(ColorPalette.BUTTON_PRIMARY);
         spawnButton.setForeground(Color.WHITE);
         spawnButton.addActionListener(event -> this.spawnTemplate(templateType));
         return spawnButton;

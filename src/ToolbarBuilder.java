@@ -101,6 +101,12 @@ class ToolbarBuilder {
 
                 this.applicationCore.getToolState().setSelectedTokenIdentifier(newIdentifier);
                 this.applicationCore.refreshDisplay();
+
+                // NEW: Trigger the token tab to update its list dynamically
+                if (this.applicationCore.onTokenListChanged != null) {
+                    this.applicationCore.onTokenListChanged.run();
+                }
+
             } catch (Exception exception) {
                 exception.printStackTrace();
             }
