@@ -5,6 +5,7 @@ import tabletop.model.*;
 import tabletop.state.Coordinate;
 import tabletop.state.DataState;
 import tabletop.state.ToolState;
+import tabletop.ui.theme.ColorPalette;
 import tabletop.util.ColorUtility;
 
 import javax.imageio.ImageIO;
@@ -15,8 +16,6 @@ import java.io.IOException;
 
 /**
  * Represents the primary rendering instance.
- * <p></p>
- * Handles conversion to screen coordinates for this tabletop.ui.core.RenderEngine.
  *
  * @author Adi
  */
@@ -30,13 +29,6 @@ class RenderEngine {
         this.colorUtility = new ColorUtility();
     }
 
-    /**
-     * Executes the rendering pipeline.
-     *
-     * @param renderGraphics  the swing graphics object
-     * @param componentWidth  the drawing area width
-     * @param componentHeight the drawing area height
-     */
     public void renderAll(Graphics renderGraphics, int componentWidth, int componentHeight) {
         Graphics2D vectorGraphics = (Graphics2D) renderGraphics;
         vectorGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -48,7 +40,10 @@ class RenderEngine {
 
         this.drawBackground(vectorGraphics, dataState);
         this.drawGrid(vectorGraphics, dataState, cellDimension, componentWidth, componentHeight);
+
+        // This handles the new range and hover functionality
         this.drawTokenRanges(vectorGraphics, dataState, toolState, cellDimension);
+
         this.drawTemplates(vectorGraphics, dataState, toolState, cellDimension);
         this.drawVectorDrawings(vectorGraphics, dataState);
         this.drawMapPins(vectorGraphics, dataState, toolState);
@@ -56,13 +51,13 @@ class RenderEngine {
     }
 
     private void drawBackground(Graphics2D vectorGraphics, DataState dataState) {
-        if (dataState.getBackgroundFilepath() == null) return;
+        if(dataState.getBackgroundFilepath() == null) return;
         try {
             java.awt.image.BufferedImage backgroundImage = ImageIO.read(new File(dataState.getBackgroundFilepath()));
             int scaledWidth = (int) (backgroundImage.getWidth() * dataState.getZoomLevel());
             int scaledHeight = (int) (backgroundImage.getHeight() * dataState.getZoomLevel());
             vectorGraphics.drawImage(backgroundImage, (int) dataState.getPanHorizontal(), (int) dataState.getPanVertical(), scaledWidth, scaledHeight, null);
-        } catch (IOException exception) {
+        } catch(IOException exception) {
             exception.printStackTrace();
         }
     }
@@ -77,49 +72,75 @@ class RenderEngine {
         int endColumn = startColumn + (int) Math.ceil(componentWidth / cellDimension) + 1;
         int endRow = startRow + (int) Math.ceil(componentHeight / cellDimension) + 1;
 
-        for (int column = startColumn; column < Math.min(endColumn, 200); column++) {
+        for(int column = startColumn; column < Math.min(endColumn, 200); column++) {
             int lineHorizontal = (int) (column * cellDimension + dataState.getPanHorizontal());
             vectorGraphics.drawLine(lineHorizontal, Math.max(0, (int) dataState.getPanVertical()), lineHorizontal, componentHeight);
         }
-        for (int row = startRow; row < Math.min(endRow, 200); row++) {
+
+        for(int row = startRow; row < Math.min(endRow, 200); row++) {
             int lineVertical = (int) (row * cellDimension + dataState.getPanVertical());
             vectorGraphics.drawLine(Math.max(0, (int) dataState.getPanHorizontal()), lineVertical, componentWidth, lineVertical);
         }
     }
 
     private void drawTokenRanges(Graphics2D vectorGraphics, DataState dataState, ToolState toolState, double cellDimension) {
-        if (toolState.getSelectedTokenIdentifier() == null) return;
-        TokenModel tokenModel = dataState.getActiveTokens().get(toolState.getSelectedTokenIdentifier());
-        if (tokenModel == null || !tokenModel.isRangeVisible()) return;
+        Integer selectedId = toolState.getSelectedTokenIdentifier();
+        if(selectedId != null) {
+            TokenModel token = dataState.getActiveTokens().get(selectedId);
 
-        Coordinate screenPosition = dataState.convertLogicalToScreen(tokenModel.getPositionHorizontal() + tokenModel.getGridScale() / 2.0, tokenModel.getPositionVertical() + tokenModel.getGridScale() / 2.0);
-        int radiusPixels = (int) (tokenModel.getMovementSpeed() * cellDimension);
+            if(token != null && token.isShowMovementRange()) {
+                double centerX = token.getPositionHorizontal() + (token.getGridScale() / 2.0);
+                double centerY = token.getPositionVertical() + (token.getGridScale() / 2.0);
+                Coordinate screenCenter = dataState.convertLogicalToScreen(centerX, centerY);
 
-        vectorGraphics.setColor(new Color(50, 205, 50, 40));
-        vectorGraphics.fillOval((int) (screenPosition.getCoordinateHorizontal() - radiusPixels), (int) (screenPosition.getCoordinateVertical() - radiusPixels), radiusPixels * 2, radiusPixels * 2);
-        vectorGraphics.setColor(new Color(34, 139, 34, 150));
-        vectorGraphics.setStroke(new BasicStroke(Math.max(1, (int) (2 * dataState.getZoomLevel()))));
-        vectorGraphics.drawOval((int) (screenPosition.getCoordinateHorizontal() - radiusPixels), (int) (screenPosition.getCoordinateVertical() - radiusPixels), radiusPixels * 2, radiusPixels * 2);
+                int radiusPx = (int) (token.getMovementSpeed() * cellDimension);
+
+                // Range Fill
+                vectorGraphics.setColor(ColorPalette.RANGE_FILL);
+                vectorGraphics.fillOval((int) screenCenter.getCoordinateHorizontal() - radiusPx, (int) screenCenter.getCoordinateVertical() - radiusPx, radiusPx * 2, radiusPx * 2);
+
+                // Range Border
+                vectorGraphics.setColor(ColorPalette.RANGE_BORDER);
+                vectorGraphics.setStroke(new BasicStroke(Math.max(1, (int) (2 * dataState.getZoomLevel()))));
+                vectorGraphics.drawOval((int) screenCenter.getCoordinateHorizontal() - radiusPx, (int) screenCenter.getCoordinateVertical() - radiusPx, radiusPx * 2, radiusPx * 2);
+
+                // Dynamic Hover Indicator
+                if(toolState.isHoverValid() && toolState.getHoverLogicalX() != null && toolState.getHoverLogicalY() != null) {
+                    double hoverCenterX = toolState.getHoverLogicalX() + (token.getGridScale() / 2.0);
+                    double hoverCenterY = toolState.getHoverLogicalY() + (token.getGridScale() / 2.0);
+                    Coordinate screenHover = dataState.convertLogicalToScreen(hoverCenterX, hoverCenterY);
+
+                    int hoverRadiusPx = (int) ((token.getGridScale() * cellDimension) / 2.0);
+
+                    Stroke dashed = new BasicStroke(Math.max(2, (int) (4 * dataState.getZoomLevel())), BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{4, 4}, 0);
+                    vectorGraphics.setStroke(dashed);
+                    vectorGraphics.setColor(ColorPalette.HOVER_BORDER);
+                    vectorGraphics.drawOval((int) screenHover.getCoordinateHorizontal() - hoverRadiusPx, (int) screenHover.getCoordinateVertical() - hoverRadiusPx, hoverRadiusPx * 2, hoverRadiusPx * 2);
+                }
+            }
+        }
     }
 
     private void drawTemplates(Graphics2D vectorGraphics, DataState dataState, ToolState toolState, double cellDimension) {
-        for (TemplateModel templateModel : dataState.getActiveTemplates()) {
+        for(TemplateModel templateModel : dataState.getActiveTemplates()) {
             Coordinate screenPosition = dataState.convertLogicalToScreen(templateModel.getPositionHorizontal(), templateModel.getPositionVertical());
             Color baseColor = this.colorUtility.retrieveColor(templateModel.getDisplayColor());
             Color fillColor = new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 90);
 
             Color outlineColor = new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 200);
-            if (java.util.Objects.equals(toolState.getSelectedTemplateIdentifier(), templateModel.getIdentifier()))
+            if(java.util.Objects.equals(toolState.getSelectedTemplateIdentifier(), templateModel.getIdentifier())) {
                 outlineColor = Color.YELLOW;
+            }
 
-            if ("circle".equals(templateModel.getGeometryType())) {
+            if("circle".equals(templateModel.getGeometryType())) {
                 double radiusPixels = (templateModel.getPrimarySize() / 5.0) * cellDimension;
                 vectorGraphics.setColor(fillColor);
                 vectorGraphics.fill(new Ellipse2D.Double(screenPosition.getCoordinateHorizontal() - radiusPixels, screenPosition.getCoordinateVertical() - radiusPixels, radiusPixels * 2, radiusPixels * 2));
                 vectorGraphics.setColor(outlineColor);
                 vectorGraphics.setStroke(new BasicStroke(3));
                 vectorGraphics.draw(new Ellipse2D.Double(screenPosition.getCoordinateHorizontal() - radiusPixels, screenPosition.getCoordinateVertical() - radiusPixels, radiusPixels * 2, radiusPixels * 2));
-            } else if ("cone".equals(templateModel.getGeometryType())) {
+
+            } else if("cone".equals(templateModel.getGeometryType())) {
                 double lengthPixels = (templateModel.getPrimarySize() / 5.0) * cellDimension;
                 Arc2D.Double arc = new Arc2D.Double(screenPosition.getCoordinateHorizontal() - lengthPixels, screenPosition.getCoordinateVertical() - lengthPixels, lengthPixels * 2, lengthPixels * 2, -(templateModel.getHeadingAngle() - templateModel.getSecondarySize() / 2.0), -templateModel.getSecondarySize(), Arc2D.PIE);
                 vectorGraphics.setColor(fillColor);
@@ -127,7 +148,8 @@ class RenderEngine {
                 vectorGraphics.setColor(outlineColor);
                 vectorGraphics.setStroke(new BasicStroke(3));
                 vectorGraphics.draw(arc);
-            } else if ("line".equals(templateModel.getGeometryType())) {
+
+            } else if("line".equals(templateModel.getGeometryType())) {
                 double lengthPixels = (templateModel.getPrimarySize() / 5.0) * cellDimension;
                 double widthPixels = (templateModel.getSecondarySize() / 5.0) * cellDimension;
                 AffineTransform originalTransform = vectorGraphics.getTransform();
@@ -145,8 +167,9 @@ class RenderEngine {
     }
 
     private void drawVectorDrawings(Graphics2D vectorGraphics, DataState dataState) {
-        for (DrawingModel drawingModel : dataState.getCanvasDrawings()) {
-            if (drawingModel.getDrawingPoints().size() < 2) continue;
+        for(DrawingModel drawingModel : dataState.getCanvasDrawings()) {
+            if(drawingModel.getDrawingPoints().size() < 2) continue;
+
             Color baseColor = this.colorUtility.retrieveColor(drawingModel.getDrawingColor());
             Color renderingColor = new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int) (drawingModel.getStrokeOpacity() * 255));
             vectorGraphics.setColor(renderingColor);
@@ -156,7 +179,7 @@ class RenderEngine {
             Coordinate firstCoordinate = dataState.convertLogicalToScreen(drawingModel.getDrawingPoints().get(0).getCoordinateHorizontal(), drawingModel.getDrawingPoints().get(0).getCoordinateVertical());
             path.moveTo(firstCoordinate.getCoordinateHorizontal(), firstCoordinate.getCoordinateVertical());
 
-            for (int index = 1; index < drawingModel.getDrawingPoints().size(); index++) {
+            for(int index = 1; index < drawingModel.getDrawingPoints().size(); index++) {
                 Coordinate pointCoordinate = dataState.convertLogicalToScreen(drawingModel.getDrawingPoints().get(index).getCoordinateHorizontal(), drawingModel.getDrawingPoints().get(index).getCoordinateVertical());
                 path.lineTo(pointCoordinate.getCoordinateHorizontal(), pointCoordinate.getCoordinateVertical());
             }
@@ -165,11 +188,11 @@ class RenderEngine {
     }
 
     private void drawMapPins(Graphics2D vectorGraphics, DataState dataState, ToolState toolState) {
-        for (int index = 0; index < dataState.getMapPins().size(); index++) {
+        for(int index = 0; index < dataState.getMapPins().size(); index++) {
             PinModel pinModel = dataState.getMapPins().get(index);
             Coordinate screenPosition = dataState.convertLogicalToScreen(pinModel.getPositionHorizontal(), pinModel.getPositionVertical());
 
-            if (java.util.Objects.equals(toolState.getSelectedPinIndex(), index)) {
+            if(java.util.Objects.equals(toolState.getSelectedPinIndex(), index)) {
                 vectorGraphics.setColor(Color.YELLOW);
                 vectorGraphics.setStroke(new BasicStroke(3));
                 vectorGraphics.drawOval((int) screenPosition.getCoordinateHorizontal() - 12, (int) screenPosition.getCoordinateVertical() - 28, 24, 32);
@@ -195,16 +218,17 @@ class RenderEngine {
     }
 
     private void drawTokens(Graphics2D vectorGraphics, DataState dataState, ToolState toolState, double cellDimension) {
-        for (Integer tokenIdentifier : dataState.getTokenOrdering()) {
+        for(Integer tokenIdentifier : dataState.getTokenOrdering()) {
             TokenModel tokenModel = dataState.getActiveTokens().get(tokenIdentifier);
-            if (tokenModel == null) continue;
+            if(tokenModel == null) continue;
 
             Coordinate screenPosition = dataState.convertLogicalToScreen(tokenModel.getPositionHorizontal(), tokenModel.getPositionVertical());
             double tokenPixelSize = cellDimension * tokenModel.getGridScale();
 
-            if (tokenModel.getOriginalImage() != null) {
+            if(tokenModel.getOriginalImage() != null) {
                 int renderingWidth = (int) (tokenPixelSize - (4 * dataState.getZoomLevel()));
-                if (renderingWidth > 5) {
+
+                if(renderingWidth > 5) {
                     double centerHorizontal = screenPosition.getCoordinateHorizontal() + tokenPixelSize / 2.0;
                     double centerVertical = screenPosition.getCoordinateVertical() + tokenPixelSize / 2.0;
 
@@ -214,13 +238,13 @@ class RenderEngine {
                     vectorGraphics.drawImage(tokenModel.getOriginalImage(), -renderingWidth / 2, -renderingWidth / 2, renderingWidth, renderingWidth, null);
                     vectorGraphics.setTransform(originalTransform);
 
-                    if (java.util.Objects.equals(toolState.getSelectedTokenIdentifier(), tokenIdentifier)) {
+                    if(java.util.Objects.equals(toolState.getSelectedTokenIdentifier(), tokenIdentifier)) {
                         vectorGraphics.setColor(Color.YELLOW);
                         vectorGraphics.setStroke(new BasicStroke(Math.max(2, (int) (4 * dataState.getZoomLevel()))));
                         vectorGraphics.drawRect((int) screenPosition.getCoordinateHorizontal(), (int) screenPosition.getCoordinateVertical(), (int) tokenPixelSize, (int) tokenPixelSize);
                     }
 
-                    for (int index = 0; index < tokenModel.getActiveEffects().size(); index++) {
+                    for(int index = 0; index < tokenModel.getActiveEffects().size(); index++) {
                         EffectModel effectModel = tokenModel.getActiveEffects().get(index);
                         double effectRadius = (renderingWidth / 2.0) + (index * 5 * dataState.getZoomLevel()) + (2 * dataState.getZoomLevel());
                         vectorGraphics.setColor(this.colorUtility.retrieveColor(effectModel.getDisplayColor()));
@@ -231,5 +255,4 @@ class RenderEngine {
             }
         }
     }
-
 }

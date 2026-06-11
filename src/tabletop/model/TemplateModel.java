@@ -17,6 +17,7 @@ public class TemplateModel implements java.io.Serializable {
     private double primarySize;
     private double secondarySize;
     private double headingAngle;
+    private boolean showMovementRange;
 
     public TemplateModel() {
         super();
@@ -84,6 +85,14 @@ public class TemplateModel implements java.io.Serializable {
 
     public void setHeadingAngle(double headingAngle) {
         this.headingAngle = headingAngle;
+    }
+
+    public boolean isShowMovementRange() {
+        return this.showMovementRange;
+    }
+
+    public void setShowMovementRange(boolean showMovementRange) {
+        this.showMovementRange = showMovementRange;
     }
 
 }

@@ -1,17 +1,17 @@
 package tabletop.ui.layout;
 
-import tabletop.main.ApplicationCore;
-import tabletop.ui.tabs.NotesTabBuilder;
-import tabletop.ui.tabs.TokensTabBuilder;
-import tabletop.ui.theme.ColorPalette;
-
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Insets;
+
+import tabletop.main.ApplicationCore;
+import tabletop.ui.tabs.TokensTabBuilder;
+import tabletop.ui.tabs.NotesTabBuilder;
+import tabletop.ui.tabs.EffectsTabBuilder;
+import tabletop.ui.theme.ColorPalette;
 
 /**
  * Represents the right panel construction instance.
@@ -27,11 +27,6 @@ public class RightPanelBuilder {
         this.applicationCore = applicationCore;
     }
 
-    /**
-     * Builds the right collapsible wrapper.
-     *
-     * @return the ready panel component
-     */
     public JPanel buildRightWrapper() {
         JPanel rightWrapper = new JPanel(new BorderLayout());
         rightWrapper.setBackground(ColorPalette.BACKGROUND_DARK);
@@ -42,9 +37,9 @@ public class RightPanelBuilder {
 
         JButton buttonToggle = new JButton("▶");
         buttonToggle.setMargin(new Insets(0, 0, 0, 0));
-        buttonToggle.setBackground(ColorPalette.BACKGROUND_DARK);
-        buttonToggle.setForeground(Color.WHITE);
-        buttonToggle.setFocusPainted(false); // Removes the ugly highlight box
+        buttonToggle.setBackground(ColorPalette.LIST_ROW_BACKGROUND);
+        buttonToggle.setForeground(ColorPalette.TEXT_LIGHT);
+        buttonToggle.setFocusPainted(false);
 
         buttonToggle.addActionListener(event -> {
             boolean isVisible = rightPanel.isVisible();
@@ -55,10 +50,12 @@ public class RightPanelBuilder {
         JTabbedPane rightNotebook = new JTabbedPane();
 
         TokensTabBuilder charactersTabBuilder = new TokensTabBuilder(this.applicationCore);
+        EffectsTabBuilder effectsTabBuilder = new EffectsTabBuilder(this.applicationCore);
         NotesTabBuilder generalInfoTabBuilder = new NotesTabBuilder(this.applicationCore);
 
         rightNotebook.addTab("Characters", charactersTabBuilder.buildTab());
-        rightNotebook.addTab("General Information", generalInfoTabBuilder.buildTab());
+        rightNotebook.addTab("Effects", effectsTabBuilder.buildTab());
+        rightNotebook.addTab("Notes", generalInfoTabBuilder.buildTab());
 
         rightPanel.add(rightNotebook, BorderLayout.CENTER);
         rightWrapper.add(rightPanel, BorderLayout.CENTER);

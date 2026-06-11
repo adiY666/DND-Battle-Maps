@@ -18,8 +18,9 @@ public class ApplicationCore {
     private final MainFrame mainFrame;
     private final CanvasPanel canvasPanel;
 
-    // NEW: Callback to trigger list refreshes across panels
     public Runnable onTokenListChanged;
+    public Runnable onSelectionChanged;
+    public Runnable onEffectsChanged;
 
     public ApplicationCore() {
         super();

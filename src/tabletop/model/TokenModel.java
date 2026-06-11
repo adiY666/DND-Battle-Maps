@@ -19,6 +19,7 @@ public class TokenModel implements java.io.Serializable {
     private double positionVertical;
     private boolean rangeVisible;
     private java.util.List<EffectModel> activeEffects;
+    private boolean showMovementRange;
 
     private transient java.awt.image.BufferedImage originalImage;
 
@@ -148,6 +149,14 @@ public class TokenModel implements java.io.Serializable {
     @Override
     public String toString() {
         return "tabletop.model.TokenModel{name='" + this.displayName + "'}";
+    }
+
+    public boolean isShowMovementRange() {
+        return this.showMovementRange;
+    }
+
+    public void setShowMovementRange(boolean showMovementRange) {
+        this.showMovementRange = showMovementRange;
     }
 
 }

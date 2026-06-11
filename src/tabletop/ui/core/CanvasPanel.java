@@ -26,6 +26,9 @@ public class CanvasPanel extends JPanel {
         this.addMouseListener(interactionController);
         this.addMouseMotionListener(interactionController);
         this.addMouseWheelListener(interactionController);
+        this.addKeyListener(new tabletop.controller.KeybindController(applicationCore));
+        this.setFocusable(true);
+        this.requestFocusInWindow();
     }
 
     @Override

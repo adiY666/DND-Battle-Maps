@@ -19,6 +19,9 @@ public class ToolState {
     private Integer hoveredTemplateIdentifier;
     private Integer selectedPinIndex;
     private Integer selectedDrawingIndex;
+    private Double hoverLogicalX;
+    private Double hoverLogicalY;
+    private boolean isHoverValid;
 
     public ToolState() {
         this.currentTool = ToolType.TOKEN;
@@ -84,6 +87,30 @@ public class ToolState {
 
     public void setSelectedDrawingIndex(Integer selectedDrawingIndex) {
         this.selectedDrawingIndex = selectedDrawingIndex;
+    }
+
+    public Double getHoverLogicalX() {
+        return this.hoverLogicalX;
+    }
+
+    public void setHoverLogicalX(Double hoverLogicalX) {
+        this.hoverLogicalX = hoverLogicalX;
+    }
+
+    public Double getHoverLogicalY() {
+        return this.hoverLogicalY;
+    }
+
+    public void setHoverLogicalY(Double hoverLogicalY) {
+        this.hoverLogicalY = hoverLogicalY;
+    }
+
+    public boolean isHoverValid() {
+        return this.isHoverValid;
+    }
+
+    public void setHoverValid(boolean hoverValid) {
+        this.isHoverValid = hoverValid;
     }
 
 }

@@ -1,12 +1,17 @@
 package tabletop.ui.tabs;
 
-import tabletop.main.ApplicationCore;
-import tabletop.model.TokenModel;
-import tabletop.state.DataState;
-import tabletop.ui.theme.ColorPalette;
-
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+
+import tabletop.main.ApplicationCore;
+import tabletop.state.DataState;
+import tabletop.model.TokenModel;
+import tabletop.model.EffectModel;
+import tabletop.ui.theme.ColorPalette;
+import tabletop.ui.core.ColorPicker;
 
 /**
  * Represents the tokens tab construction instance.
@@ -16,25 +21,31 @@ import java.awt.*;
 public class TokensTabBuilder {
 
     private final ApplicationCore applicationCore;
+    private JPanel mainCardPanel;
+    private CardLayout cardLayout;
     private JPanel listContainer;
+    private JPanel detailsContainer;
 
     public TokensTabBuilder(ApplicationCore applicationCore) {
         super();
         this.applicationCore = applicationCore;
     }
 
-    /**
-     * Builds the tab interface.
-     *
-     * @return the tab panel component
-     */
     public JPanel buildTab() {
         JPanel tabContainer = new JPanel(new BorderLayout());
         tabContainer.setBackground(ColorPalette.BACKGROUND_DARK);
 
+        this.cardLayout = new CardLayout();
+        this.mainCardPanel = new JPanel(this.cardLayout);
+        this.mainCardPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+
+        // --- View 1: The Token List ---
+        JPanel listWrapper = new JPanel(new BorderLayout());
+        listWrapper.setBackground(ColorPalette.BACKGROUND_DARK);
+
         JButton clearButton = new JButton("Clear All Tokens");
-        clearButton.setBackground(new Color(244, 67, 54));
-        clearButton.setForeground(Color.WHITE);
+        clearButton.setBackground(ColorPalette.BUTTON_DANGER);
+        clearButton.setForeground(ColorPalette.TEXT_LIGHT);
         clearButton.setFocusPainted(false);
         clearButton.addActionListener(event -> {
             this.applicationCore.getDataState().getActiveTokens().clear();
@@ -42,123 +53,476 @@ public class TokensTabBuilder {
             this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
             this.applicationCore.refreshDisplay();
             this.refreshTokensList();
+            this.refreshDetailsPanel();
+            if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
         });
+        listWrapper.add(clearButton, BorderLayout.NORTH);
 
-        tabContainer.add(clearButton, BorderLayout.NORTH);
-
-        // Container for the dynamic list of tokens
         this.listContainer = new JPanel();
         this.listContainer.setLayout(new BoxLayout(this.listContainer, BoxLayout.Y_AXIS));
         this.listContainer.setBackground(ColorPalette.BACKGROUND_DARK);
+        JScrollPane listScroll = new JScrollPane(this.listContainer);
+        listScroll.setBorder(null);
+        listWrapper.add(listScroll, BorderLayout.CENTER);
 
-        JScrollPane scrollPane = new JScrollPane(this.listContainer);
-        scrollPane.setBorder(null);
-        scrollPane.getViewport().setBackground(ColorPalette.BACKGROUND_DARK);
-        tabContainer.add(scrollPane, BorderLayout.CENTER);
 
-        // Register this tab to listen to the new addition signal
+        // --- View 2: The Selected Details ---
+        JPanel detailsWrapper = new JPanel(new BorderLayout());
+        detailsWrapper.setBackground(ColorPalette.BACKGROUND_DARK);
+
+        JButton backButton = new JButton("⬅ Back to Roster");
+        backButton.setBackground(ColorPalette.BUTTON_PRIMARY);
+        backButton.setForeground(ColorPalette.TEXT_LIGHT);
+        backButton.setFocusPainted(false);
+        backButton.addActionListener(e -> {
+            this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
+            if(this.applicationCore.onSelectionChanged != null) {
+                this.applicationCore.onSelectionChanged.run();
+            }
+            this.applicationCore.refreshDisplay();
+        });
+        detailsWrapper.add(backButton, BorderLayout.NORTH);
+
+        this.detailsContainer = new JPanel();
+        this.detailsContainer.setLayout(new BoxLayout(this.detailsContainer, BoxLayout.Y_AXIS));
+        this.detailsContainer.setBackground(ColorPalette.BACKGROUND_DARK);
+        JScrollPane detailsScroll = new JScrollPane(this.detailsContainer);
+
+        // TITLE BLACK: Set title color to TEXT_DARK (Black)
+        javax.swing.border.TitledBorder border = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(ColorPalette.BACKGROUND_LIGHT), "Selected Details");
+        border.setTitleColor(ColorPalette.TEXT_DARK);
+        detailsScroll.setBorder(border);
+        detailsWrapper.add(detailsScroll, BorderLayout.CENTER);
+
+        // Bind views
+        this.mainCardPanel.add(listWrapper, "LIST");
+        this.mainCardPanel.add(detailsWrapper, "DETAILS");
+
+        tabContainer.add(this.mainCardPanel, BorderLayout.CENTER);
+
         this.applicationCore.onTokenListChanged = this::refreshTokensList;
+        this.applicationCore.onSelectionChanged = this::refreshDetailsPanel;
 
         this.refreshTokensList();
+        this.refreshDetailsPanel();
         return tabContainer;
     }
 
-    /**
-     * Clears and rebuilds the UI list of tokens based on the current tabletop.state.DataState.
-     */
     public void refreshTokensList() {
         this.listContainer.removeAll();
         DataState dataState = this.applicationCore.getDataState();
 
-        // Loop backwards to show newest tokens at the top (like the python version)
-        for (int i = dataState.getTokenOrdering().size() - 1; i >= 0; i--) {
+        for(int i = dataState.getTokenOrdering().size() - 1; i >= 0; i--) {
             Integer tokenId = dataState.getTokenOrdering().get(i);
             TokenModel token = dataState.getActiveTokens().get(tokenId);
-            if (token == null) continue;
+            if(token == null) continue;
 
-            // Row Wrapper
             JPanel row = new JPanel(new BorderLayout());
-            row.setBackground(ColorPalette.BACKGROUND_DARK);
+            row.setBackground(ColorPalette.LIST_ROW_BACKGROUND);
             row.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
             row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
 
-            // Name
             JLabel nameLabel = new JLabel(token.getDisplayName());
-            nameLabel.setForeground(Color.WHITE);
+            nameLabel.setForeground(ColorPalette.TEXT_LIGHT);
             row.add(nameLabel, BorderLayout.CENTER);
 
-            // Buttons
             JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
-            buttonPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+            buttonPanel.setBackground(ColorPalette.LIST_ROW_BACKGROUND);
 
             JButton jumpBtn = new JButton("Jump");
             jumpBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
-            jumpBtn.setForeground(Color.WHITE);
+            jumpBtn.setForeground(ColorPalette.TEXT_LIGHT);
             jumpBtn.setMargin(new Insets(2, 5, 2, 5));
             jumpBtn.addActionListener(e -> this.jumpToToken(token));
 
             JButton editBtn = new JButton("Edit");
-            editBtn.setBackground(new Color(255, 152, 0));
-            editBtn.setForeground(Color.WHITE);
+            editBtn.setBackground(ColorPalette.BUTTON_WARNING);
+            editBtn.setForeground(ColorPalette.TEXT_LIGHT);
             editBtn.setMargin(new Insets(2, 5, 2, 5));
             editBtn.addActionListener(e -> this.editToken(token));
 
+            JButton deleteBtn = new JButton("X");
+            deleteBtn.setBackground(ColorPalette.BUTTON_DANGER);
+            deleteBtn.setForeground(ColorPalette.TEXT_LIGHT);
+            deleteBtn.setMargin(new Insets(2, 5, 2, 5));
+            deleteBtn.addActionListener(e -> this.deleteToken(token));
+
             buttonPanel.add(jumpBtn);
             buttonPanel.add(editBtn);
+            buttonPanel.add(deleteBtn);
             row.add(buttonPanel, BorderLayout.EAST);
 
             this.listContainer.add(row);
-            this.listContainer.add(Box.createRigidArea(new Dimension(0, 5))); // Spacing
+            this.listContainer.add(Box.createRigidArea(new Dimension(0, 5)));
         }
 
         this.listContainer.revalidate();
         this.listContainer.repaint();
     }
 
+    public void refreshDetailsPanel() {
+        this.detailsContainer.removeAll();
+        Integer selectedId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
+
+        if(selectedId == null) {
+            // Revert back to the list view if nothing is selected
+            this.cardLayout.show(this.mainCardPanel, "LIST");
+        } else {
+            // Swap to the details view
+            this.cardLayout.show(this.mainCardPanel, "DETAILS");
+
+            TokenModel token = this.applicationCore.getDataState().getActiveTokens().get(selectedId);
+            if(token != null) {
+
+                JPanel imgPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+                imgPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+                if(token.getOriginalImage() != null) {
+                    Image scaledImg = token.getOriginalImage().getScaledInstance(60, 60, Image.SCALE_SMOOTH);
+                    imgPanel.add(new JLabel(new ImageIcon(scaledImg)));
+                }
+                JButton changeImgBtn = new JButton("Change Image");
+                changeImgBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
+                changeImgBtn.setForeground(ColorPalette.TEXT_LIGHT);
+                changeImgBtn.addActionListener(e -> {
+                    JFileChooser fileChooser = new JFileChooser();
+                    if(fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
+                        try {
+                            String imagePath = fileChooser.getSelectedFile().getAbsolutePath();
+                            BufferedImage newImg = ImageIO.read(new File(imagePath));
+                            token.setImageFilepath(imagePath);
+                            token.setOriginalImage(newImg);
+                            this.refreshDetailsPanel();
+                            this.applicationCore.refreshDisplay();
+                        } catch(Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                });
+                imgPanel.add(changeImgBtn);
+                this.detailsContainer.add(imgPanel);
+
+                JPanel formPanel = new JPanel(new GridLayout(3, 2, 5, 5));
+                formPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+
+                JTextField nameField = new JTextField(token.getDisplayName());
+                nameField.setBackground(ColorPalette.INPUT_BACKGROUND);
+                nameField.setForeground(ColorPalette.TEXT_LIGHT);
+
+                JTextField speedField = new JTextField(String.valueOf(token.getMovementSpeed() * 5));
+                speedField.setBackground(ColorPalette.INPUT_BACKGROUND);
+                speedField.setForeground(ColorPalette.TEXT_LIGHT);
+
+                JTextField sizeField = new JTextField(String.valueOf(token.getGridScale()));
+                sizeField.setBackground(ColorPalette.INPUT_BACKGROUND);
+                sizeField.setForeground(ColorPalette.TEXT_LIGHT);
+
+                JLabel nameLabel = new JLabel("Name:");
+                nameLabel.setForeground(ColorPalette.TEXT_LIGHT);
+                JLabel speedLabel = new JLabel("Speed (ft):");
+                speedLabel.setForeground(ColorPalette.TEXT_LIGHT);
+                JLabel sizeLabel = new JLabel("Size (sq):");
+                sizeLabel.setForeground(ColorPalette.TEXT_LIGHT);
+
+                formPanel.add(nameLabel);
+                formPanel.add(nameField);
+                formPanel.add(speedLabel);
+                formPanel.add(speedField);
+                formPanel.add(sizeLabel);
+                formPanel.add(sizeField);
+                this.detailsContainer.add(formPanel);
+
+                JButton saveBtn = new JButton("Save Profile");
+                saveBtn.setBackground(ColorPalette.BUTTON_SUCCESS);
+                saveBtn.setForeground(ColorPalette.TEXT_LIGHT);
+                saveBtn.addActionListener(e -> {
+                    try {
+                        token.setDisplayName(nameField.getText().trim());
+                        token.setMovementSpeed(Integer.parseInt(speedField.getText().trim()) / 5);
+                        token.setGridScale(Integer.parseInt(sizeField.getText().trim()));
+                        this.refreshTokensList();
+                        if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
+                        this.applicationCore.refreshDisplay();
+                    } catch(NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Invalid format.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+                this.detailsContainer.add(Box.createRigidArea(new Dimension(0, 5)));
+                this.detailsContainer.add(saveBtn);
+                this.detailsContainer.add(Box.createRigidArea(new Dimension(0, 10)));
+
+                JButton addEffectBtn = new JButton("+ Add Effect");
+                addEffectBtn.setBackground(ColorPalette.BUTTON_WARNING);
+                addEffectBtn.setForeground(ColorPalette.TEXT_LIGHT);
+                addEffectBtn.addActionListener(e -> this.showAddEffectDialog(token));
+                this.detailsContainer.add(addEffectBtn);
+                this.detailsContainer.add(Box.createRigidArea(new Dimension(0, 5)));
+
+                // FIXED EFFECTS BLOCK: Wrap in a sized scroll pane
+                JPanel effectsListPanel = new JPanel();
+                effectsListPanel.setLayout(new BoxLayout(effectsListPanel, BoxLayout.Y_AXIS));
+                effectsListPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+
+                for(EffectModel effect : token.getActiveEffects()) {
+                    JPanel effRow = new JPanel(new BorderLayout());
+                    effRow.setBackground(ColorPalette.LIST_ROW_BACKGROUND);
+                    effRow.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+                    effRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+
+                    JLabel effLabel = new JLabel(effect.getEffectName() + " (" + effect.getRemainingTurns() + " turns)");
+                    effLabel.setForeground(ColorPalette.TEXT_LIGHT);
+                    effRow.add(effLabel, BorderLayout.CENTER);
+
+                    JButton removeEffBtn = new JButton("X");
+                    removeEffBtn.setBackground(ColorPalette.BUTTON_DANGER);
+                    removeEffBtn.setForeground(ColorPalette.TEXT_LIGHT);
+                    removeEffBtn.setMargin(new Insets(0, 5, 0, 5));
+                    removeEffBtn.addActionListener(e -> {
+                        token.getActiveEffects().remove(effect);
+                        this.refreshDetailsPanel();
+                        if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
+                        this.applicationCore.refreshDisplay();
+                    });
+                    effRow.add(removeEffBtn, BorderLayout.EAST);
+
+                    effectsListPanel.add(effRow);
+                    effectsListPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+                }
+
+                JScrollPane effectsScroll = new JScrollPane(effectsListPanel);
+                // Force a small, constant block size so it doesn't take over the screen
+                effectsScroll.setPreferredSize(new Dimension(0, 120));
+                effectsScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+                effectsScroll.setBorder(BorderFactory.createLineBorder(ColorPalette.BACKGROUND_LIGHT));
+                this.detailsContainer.add(effectsScroll);
+            }
+        }
+        this.detailsContainer.revalidate();
+        this.detailsContainer.repaint();
+    }
+
+    private void showAddEffectDialog(TokenModel token) {
+        JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
+        panel.setBackground(ColorPalette.BACKGROUND_DARK);
+
+        JTextField nameField = new JTextField();
+        JTextField durationField = new JTextField("5");
+        ColorPicker colorPicker = new ColorPicker();
+
+        nameField.setBackground(ColorPalette.INPUT_BACKGROUND);
+        nameField.setForeground(ColorPalette.TEXT_LIGHT);
+        durationField.setBackground(ColorPalette.INPUT_BACKGROUND);
+        durationField.setForeground(ColorPalette.TEXT_LIGHT);
+
+        JLabel nameLabel = new JLabel("Effect Name:");
+        nameLabel.setForeground(ColorPalette.TEXT_LIGHT);
+        JLabel durLabel = new JLabel("Duration (Turns):");
+        durLabel.setForeground(ColorPalette.TEXT_LIGHT);
+        JLabel colorLabel = new JLabel("Color:");
+        colorLabel.setForeground(ColorPalette.TEXT_LIGHT);
+
+        panel.add(nameLabel);
+        panel.add(nameField);
+        panel.add(durLabel);
+        panel.add(durationField);
+        panel.add(colorLabel);
+        panel.add(colorPicker);
+
+        JButton okButton = new JButton("Finish");
+        okButton.setBackground(ColorPalette.BUTTON_SUCCESS);
+        okButton.setForeground(ColorPalette.TEXT_LIGHT);
+
+        JButton cancelButton = new JButton("Cancel");
+        cancelButton.setBackground(ColorPalette.BUTTON_DANGER);
+        cancelButton.setForeground(ColorPalette.TEXT_LIGHT);
+
+        Object[] options = {okButton, cancelButton};
+        JOptionPane optionPane = new JOptionPane(panel, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, options[0]);
+        JDialog dialog = optionPane.createDialog(this.applicationCore.getMainFrame(), "Add Effect");
+
+        okButton.addActionListener(e -> {
+            optionPane.setValue(JOptionPane.OK_OPTION);
+            dialog.dispose();
+        });
+
+        cancelButton.addActionListener(e -> {
+            optionPane.setValue(JOptionPane.CANCEL_OPTION);
+            dialog.dispose();
+        });
+
+        dialog.setVisible(true);
+
+        Object result = optionPane.getValue();
+        if(result != null && result.equals(JOptionPane.OK_OPTION)) {
+            try {
+                String effectName = nameField.getText().trim();
+                int turns = Integer.parseInt(durationField.getText().trim());
+
+                // Get the string from the new custom ColorPicker
+                String color = colorPicker.getSelectedColor();
+
+                token.getActiveEffects().add(new EffectModel(effectName, turns, color));
+                this.refreshDetailsPanel();
+                if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
+                this.applicationCore.refreshDisplay();
+            } catch(NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Invalid duration.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
     private void jumpToToken(TokenModel token) {
         DataState dataState = this.applicationCore.getDataState();
         int canvasWidth = this.applicationCore.getCanvasPanel().getWidth();
         int canvasHeight = this.applicationCore.getCanvasPanel().getHeight();
-
-        // Calculate the camera pan required to center the token
         double targetX = (canvasWidth / 2.0) - ((token.getPositionHorizontal() + token.getGridScale() / 2.0) * dataState.calculateCellDimension());
         double targetY = (canvasHeight / 2.0) - ((token.getPositionVertical() + token.getGridScale() / 2.0) * dataState.calculateCellDimension());
 
         dataState.setPanHorizontal(targetX);
         dataState.setPanVertical(targetY);
         this.applicationCore.getToolState().setSelectedTokenIdentifier(token.getIdentifier());
+        if(this.applicationCore.onSelectionChanged != null) {
+            this.applicationCore.onSelectionChanged.run();
+        }
         this.applicationCore.refreshDisplay();
     }
 
     private void editToken(TokenModel token) {
-        JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
+        JPanel panel = new JPanel(new GridLayout(4, 2, 5, 5));
+        panel.setBackground(ColorPalette.BACKGROUND_DARK);
 
         JTextField nameField = new JTextField(token.getDisplayName());
-        // Translate grid speed to feet (1 square = 5 ft)
         JTextField speedField = new JTextField(String.valueOf(token.getMovementSpeed() * 5));
         JTextField sizeField = new JTextField(String.valueOf(token.getGridScale()));
 
-        panel.add(new JLabel("Name:"));
+        nameField.setBackground(ColorPalette.INPUT_BACKGROUND);
+        nameField.setForeground(ColorPalette.TEXT_LIGHT);
+        speedField.setBackground(ColorPalette.INPUT_BACKGROUND);
+        speedField.setForeground(ColorPalette.TEXT_LIGHT);
+        sizeField.setBackground(ColorPalette.INPUT_BACKGROUND);
+        sizeField.setForeground(ColorPalette.TEXT_LIGHT);
+
+        JLabel nameLabel = new JLabel("Name:");
+        nameLabel.setForeground(ColorPalette.TEXT_LIGHT);
+
+        JLabel speedLabel = new JLabel("Speed (ft):");
+        speedLabel.setForeground(ColorPalette.TEXT_LIGHT);
+
+        JLabel sizeLabel = new JLabel("Size (squares):");
+        sizeLabel.setForeground(ColorPalette.TEXT_LIGHT);
+
+        JLabel layerLabel = new JLabel("Layering:");
+        layerLabel.setForeground(ColorPalette.TEXT_LIGHT);
+
+        JPanel layerBtnPanel = new JPanel(new GridLayout(1, 2, 5, 0));
+        layerBtnPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+
+        JButton backwardBtn = new JButton("Back");
+        backwardBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
+        backwardBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        backwardBtn.addActionListener(e -> this.moveTokenBackward(token));
+
+        JButton forwardBtn = new JButton("Front");
+        forwardBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
+        forwardBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        forwardBtn.addActionListener(e -> this.moveTokenForward(token));
+
+        layerBtnPanel.add(backwardBtn);
+        layerBtnPanel.add(forwardBtn);
+
+        panel.add(nameLabel);
         panel.add(nameField);
-        panel.add(new JLabel("Speed (ft):"));
+        panel.add(speedLabel);
         panel.add(speedField);
-        panel.add(new JLabel("Size (squares):"));
+        panel.add(sizeLabel);
         panel.add(sizeField);
+        panel.add(layerLabel);
+        panel.add(layerBtnPanel);
 
-        int result = JOptionPane.showConfirmDialog(this.applicationCore.getMainFrame(), panel, "Edit " + token.getDisplayName(), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        JButton okButton = new JButton("OK");
+        okButton.setBackground(ColorPalette.BUTTON_SUCCESS);
+        okButton.setForeground(ColorPalette.TEXT_LIGHT);
 
-        if (result == JOptionPane.OK_OPTION) {
+        JButton cancelButton = new JButton("Cancel");
+        cancelButton.setBackground(ColorPalette.BUTTON_SUCCESS);
+        cancelButton.setForeground(ColorPalette.TEXT_LIGHT);
+
+        Object[] options = {okButton, cancelButton};
+
+        JOptionPane optionPane = new JOptionPane(panel, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, options[0]);
+        JDialog dialog = optionPane.createDialog(this.applicationCore.getMainFrame(), "Edit " + token.getDisplayName());
+
+        okButton.addActionListener(e -> {
+            optionPane.setValue(JOptionPane.OK_OPTION);
+            dialog.dispose();
+        });
+
+        cancelButton.addActionListener(e -> {
+            optionPane.setValue(JOptionPane.CANCEL_OPTION);
+            dialog.dispose();
+        });
+
+        dialog.setVisible(true);
+
+        Object result = optionPane.getValue();
+
+        if(result != null && result.equals(JOptionPane.OK_OPTION)) {
             try {
                 token.setDisplayName(nameField.getText().trim());
-                // Translate feet back to grid speed
                 token.setMovementSpeed(Integer.parseInt(speedField.getText().trim()) / 5);
                 token.setGridScale(Integer.parseInt(sizeField.getText().trim()));
 
                 this.refreshTokensList();
+                if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
                 this.applicationCore.refreshDisplay();
-            } catch (NumberFormatException ex) {
+            } catch(NumberFormatException ex) {
                 JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Invalid number format for speed or size.", "Error", JOptionPane.ERROR_MESSAGE);
             }
+        }
+    }
+
+    private void deleteToken(TokenModel token) {
+        int confirm = JOptionPane.showConfirmDialog(this.applicationCore.getMainFrame(), "Remove '" + token.getDisplayName() + "' from the map?", "Delete Token", JOptionPane.YES_NO_OPTION);
+
+        if(confirm == JOptionPane.YES_OPTION) {
+            DataState dataState = this.applicationCore.getDataState();
+
+            dataState.getActiveTokens().remove(token.getIdentifier());
+            dataState.getTokenOrdering().remove((Integer) token.getIdentifier());
+
+            if(java.util.Objects.equals(this.applicationCore.getToolState().getSelectedTokenIdentifier(), token.getIdentifier())) {
+                this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
+                if(this.applicationCore.onSelectionChanged != null) {
+                    this.applicationCore.onSelectionChanged.run();
+                }
+            }
+
+            this.refreshTokensList();
+            if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
+            this.applicationCore.refreshDisplay();
+        }
+    }
+
+    private void moveTokenForward(TokenModel token) {
+        java.util.List<Integer> ordering = this.applicationCore.getDataState().getTokenOrdering();
+        int index = ordering.indexOf(token.getIdentifier());
+
+        if(index != -1 && index < ordering.size() - 1) {
+            ordering.remove(index);
+            ordering.add(index + 1, token.getIdentifier());
+            this.refreshTokensList();
+            this.applicationCore.refreshDisplay();
+        }
+    }
+
+    private void moveTokenBackward(TokenModel token) {
+        java.util.List<Integer> ordering = this.applicationCore.getDataState().getTokenOrdering();
+        int index = ordering.indexOf(token.getIdentifier());
+
+        if(index > 0) {
+            ordering.remove(index);
+            ordering.add(index - 1, token.getIdentifier());
+            this.refreshTokensList();
+            this.applicationCore.refreshDisplay();
         }
     }
 }
