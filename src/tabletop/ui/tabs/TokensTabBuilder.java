@@ -43,7 +43,10 @@ public class TokensTabBuilder {
         JPanel listWrapper = new JPanel(new BorderLayout());
         listWrapper.setBackground(ColorPalette.BACKGROUND_DARK);
 
-        JButton clearButton = new JButton("Clear All Tokens");
+        JPanel topButtons = new JPanel(new GridLayout(1, 2, 5, 0));
+        topButtons.setBackground(ColorPalette.BACKGROUND_DARK);
+
+        JButton clearButton = new JButton("Clear All");
         clearButton.setBackground(ColorPalette.BUTTON_DANGER);
         clearButton.setForeground(ColorPalette.TEXT_LIGHT);
         clearButton.setFocusPainted(false);
@@ -56,7 +59,16 @@ public class TokensTabBuilder {
             this.refreshDetailsPanel();
             if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
         });
-        listWrapper.add(clearButton, BorderLayout.NORTH);
+
+        JButton nextTurnBtn = new JButton("Next Turn (Enter)");
+        nextTurnBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
+        nextTurnBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        nextTurnBtn.setFocusPainted(false);
+        nextTurnBtn.addActionListener(event -> this.applicationCore.advanceTurn());
+
+        topButtons.add(clearButton);
+        topButtons.add(nextTurnBtn);
+        listWrapper.add(topButtons, BorderLayout.NORTH);
 
         this.listContainer = new JPanel();
         this.listContainer.setLayout(new BoxLayout(this.listContainer, BoxLayout.Y_AXIS));
@@ -88,7 +100,6 @@ public class TokensTabBuilder {
         this.detailsContainer.setBackground(ColorPalette.BACKGROUND_DARK);
         JScrollPane detailsScroll = new JScrollPane(this.detailsContainer);
 
-        // TITLE BLACK: Set title color to TEXT_DARK (Black)
         javax.swing.border.TitledBorder border = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(ColorPalette.BACKGROUND_LIGHT), "Selected Details");
         border.setTitleColor(ColorPalette.TEXT_DARK);
         detailsScroll.setBorder(border);
@@ -165,10 +176,8 @@ public class TokensTabBuilder {
         Integer selectedId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
 
         if(selectedId == null) {
-            // Revert back to the list view if nothing is selected
             this.cardLayout.show(this.mainCardPanel, "LIST");
         } else {
-            // Swap to the details view
             this.cardLayout.show(this.mainCardPanel, "DETAILS");
 
             TokenModel token = this.applicationCore.getDataState().getActiveTokens().get(selectedId);
@@ -250,6 +259,17 @@ public class TokensTabBuilder {
                 this.detailsContainer.add(saveBtn);
                 this.detailsContainer.add(Box.createRigidArea(new Dimension(0, 10)));
 
+                JButton toggleRangeBtn = new JButton(token.isShowMovementRange() ? "Hide Range (R)" : "Show Range (R)");
+                toggleRangeBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
+                toggleRangeBtn.setForeground(ColorPalette.TEXT_LIGHT);
+                toggleRangeBtn.addActionListener(e -> {
+                    token.setShowMovementRange(!token.isShowMovementRange());
+                    this.refreshDetailsPanel();
+                    this.applicationCore.refreshDisplay();
+                });
+                this.detailsContainer.add(toggleRangeBtn);
+                this.detailsContainer.add(Box.createRigidArea(new Dimension(0, 5)));
+
                 JButton addEffectBtn = new JButton("+ Add Effect");
                 addEffectBtn.setBackground(ColorPalette.BUTTON_WARNING);
                 addEffectBtn.setForeground(ColorPalette.TEXT_LIGHT);
@@ -257,7 +277,6 @@ public class TokensTabBuilder {
                 this.detailsContainer.add(addEffectBtn);
                 this.detailsContainer.add(Box.createRigidArea(new Dimension(0, 5)));
 
-                // FIXED EFFECTS BLOCK: Wrap in a sized scroll pane
                 JPanel effectsListPanel = new JPanel();
                 effectsListPanel.setLayout(new BoxLayout(effectsListPanel, BoxLayout.Y_AXIS));
                 effectsListPanel.setBackground(ColorPalette.BACKGROUND_DARK);
@@ -289,7 +308,6 @@ public class TokensTabBuilder {
                 }
 
                 JScrollPane effectsScroll = new JScrollPane(effectsListPanel);
-                // Force a small, constant block size so it doesn't take over the screen
                 effectsScroll.setPreferredSize(new Dimension(0, 120));
                 effectsScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
                 effectsScroll.setBorder(BorderFactory.createLineBorder(ColorPalette.BACKGROUND_LIGHT));
@@ -332,7 +350,7 @@ public class TokensTabBuilder {
         okButton.setForeground(ColorPalette.TEXT_LIGHT);
 
         JButton cancelButton = new JButton("Cancel");
-        cancelButton.setBackground(ColorPalette.BUTTON_DANGER);
+        cancelButton.setBackground(ColorPalette.BUTTON_SUCCESS);
         cancelButton.setForeground(ColorPalette.TEXT_LIGHT);
 
         Object[] options = {okButton, cancelButton};
@@ -356,8 +374,6 @@ public class TokensTabBuilder {
             try {
                 String effectName = nameField.getText().trim();
                 int turns = Integer.parseInt(durationField.getText().trim());
-
-                // Get the string from the new custom ColorPicker
                 String color = colorPicker.getSelectedColor();
 
                 token.getActiveEffects().add(new EffectModel(effectName, turns, color));
@@ -481,7 +497,10 @@ public class TokensTabBuilder {
     }
 
     private void deleteToken(TokenModel token) {
-        int confirm = JOptionPane.showConfirmDialog(this.applicationCore.getMainFrame(), "Remove '" + token.getDisplayName() + "' from the map?", "Delete Token", JOptionPane.YES_NO_OPTION);
+        JLabel messageLabel = new JLabel("Remove '" + token.getDisplayName() + "' from the map?");
+        messageLabel.setForeground(ColorPalette.TEXT_LIGHT);
+
+        int confirm = JOptionPane.showConfirmDialog(this.applicationCore.getMainFrame(), messageLabel, "Delete Token", JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE);
 
         if(confirm == JOptionPane.YES_OPTION) {
             DataState dataState = this.applicationCore.getDataState();

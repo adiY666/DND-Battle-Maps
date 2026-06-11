@@ -1,15 +1,14 @@
 package tabletop.ui.core;
 
-import tabletop.controller.InteractionController;
-import tabletop.main.ApplicationCore;
+import javax.swing.JPanel;
+import java.awt.Graphics;
 
-import javax.swing.*;
-import java.awt.*;
+import tabletop.main.ApplicationCore;
+import tabletop.controller.InteractionController;
+import tabletop.ui.theme.ColorPalette;
 
 /**
- * Represents the primary drawing area instance.
- * <p></p>
- * Displays the entire tabletop board for this tabletop.ui.core.CanvasPanel.
+ * Represents the primary drawing surface for the map.
  *
  * @author Adi
  */
@@ -21,14 +20,16 @@ public class CanvasPanel extends JPanel {
     public CanvasPanel(ApplicationCore applicationCore) {
         super();
         this.applicationCore = applicationCore;
-        this.renderEngine = new RenderEngine(applicationCore);
-        InteractionController interactionController = new InteractionController(applicationCore);
+        this.renderEngine = new RenderEngine(this.applicationCore);
+
+        this.setBackground(ColorPalette.BACKGROUND_DARK);
+        this.setFocusable(true);
+        this.requestFocusInWindow();
+
+        InteractionController interactionController = new InteractionController(this.applicationCore);
         this.addMouseListener(interactionController);
         this.addMouseMotionListener(interactionController);
         this.addMouseWheelListener(interactionController);
-        this.addKeyListener(new tabletop.controller.KeybindController(applicationCore));
-        this.setFocusable(true);
-        this.requestFocusInWindow();
     }
 
     @Override
@@ -36,5 +37,4 @@ public class CanvasPanel extends JPanel {
         super.paintComponent(renderGraphics);
         this.renderEngine.renderAll(renderGraphics, this.getWidth(), this.getHeight());
     }
-
 }
