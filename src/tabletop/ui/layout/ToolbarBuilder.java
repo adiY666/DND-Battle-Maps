@@ -11,6 +11,7 @@ import tabletop.state.Coordinate;
 import tabletop.model.TokenModel;
 import tabletop.ui.theme.ColorPalette;
 import tabletop.ui.core.ToggleSwitch;
+import tabletop.ui.core.PlayerFrame;
 
 /**
  * Builds the top main menu toolbar.
@@ -34,22 +35,15 @@ public class ToolbarBuilder {
         toolbar.setBackground(ColorPalette.TOOLBAR_BACKGROUND);
 
         JButton loadMapBtn = new JButton("Load Map");
-        loadMapBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
-        loadMapBtn.setForeground(ColorPalette.TEXT_LIGHT);
-        loadMapBtn.setFocusPainted(false);
+        this.styleButton(loadMapBtn, ColorPalette.BUTTON_PRIMARY);
         loadMapBtn.addActionListener(e -> this.handleLoadMap());
 
         JButton addMiniBtn = new JButton("Add Miniature");
-        addMiniBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
-        addMiniBtn.setForeground(ColorPalette.TEXT_LIGHT);
-        addMiniBtn.setFocusPainted(false);
+        this.styleButton(addMiniBtn, ColorPalette.BUTTON_PRIMARY);
         addMiniBtn.addActionListener(e -> this.handleTokenAdd());
 
-        // --- NEW: Next Turn Button moved here ---
         JButton nextTurnBtn = new JButton("Next Turn (Enter)");
-        nextTurnBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
-        nextTurnBtn.setForeground(ColorPalette.TEXT_LIGHT);
-        nextTurnBtn.setFocusPainted(false);
+        this.styleButton(nextTurnBtn, ColorPalette.BUTTON_PRIMARY);
         nextTurnBtn.addActionListener(e -> this.applicationCore.advanceTurn());
 
         snapCheckBox = new ToggleSwitch("Snap to Grid (S)");
@@ -60,7 +54,6 @@ public class ToolbarBuilder {
             this.applicationCore.getDataState().setSnapToGrid(snapCheckBox.isSelected());
         });
 
-        // Add all primary map tools
         toolbar.add(loadMapBtn);
         toolbar.add(addMiniBtn);
         toolbar.add(nextTurnBtn);
@@ -68,14 +61,20 @@ public class ToolbarBuilder {
 
         toolbar.add(Box.createRigidArea(new Dimension(20, 0)));
 
-        // Player View Controls
         JButton launchPlayerBtn = new JButton("Launch Player View");
-        launchPlayerBtn.setBackground(ColorPalette.BUTTON_WARNING);
-        launchPlayerBtn.setForeground(ColorPalette.TEXT_LIGHT);
-        launchPlayerBtn.setFocusPainted(false);
+        this.styleButton(launchPlayerBtn, ColorPalette.BUTTON_WARNING);
         launchPlayerBtn.addActionListener(e -> {
             this.applicationCore.getPlayerFrame().setVisible(true);
             this.applicationCore.refreshDisplay();
+        });
+
+        JButton fullscreenPlayerBtn = new JButton("Toggle Fullscreen (F11)");
+        this.styleButton(fullscreenPlayerBtn, ColorPalette.BUTTON_WARNING);
+        fullscreenPlayerBtn.addActionListener(e -> {
+            // Check if it's our specific PlayerFrame to safely call the custom method
+            if(this.applicationCore.getPlayerFrame() instanceof PlayerFrame) {
+                ((PlayerFrame) this.applicationCore.getPlayerFrame()).toggleFullScreen();
+            }
         });
 
         blackoutCheckBox = new ToggleSwitch("Stop Sharing (Blackout)");
@@ -88,9 +87,18 @@ public class ToolbarBuilder {
         });
 
         toolbar.add(launchPlayerBtn);
+        toolbar.add(fullscreenPlayerBtn);
         toolbar.add(blackoutCheckBox);
 
         return toolbar;
+    }
+
+    private void styleButton(JButton button, Color backgroundColor) {
+        button.setBackground(backgroundColor);
+        button.setForeground(ColorPalette.TEXT_LIGHT);
+        button.setFocusPainted(false);
+        button.setOpaque(true);
+        button.setBorderPainted(false);
     }
 
     private void handleLoadMap() {
