@@ -1,4 +1,4 @@
-package tabletop.ui.tabs;
+package tabletop.ui.core;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -8,16 +8,16 @@ import java.awt.*;
 import tabletop.main.ApplicationCore;
 import tabletop.model.PinModel;
 import tabletop.ui.theme.ColorPalette;
-import tabletop.ui.core.ColorPicker;
 
 /**
- * Represents the map pins and notes tab construction instance.
+ * Represents the detached floating window for Map Pins and Notes.
  *
  * @author Adi
  */
-public class PinsTabBuilder {
+public class PinsWindow {
 
     private final ApplicationCore applicationCore;
+    private JFrame frame;
     private JPanel mainCardPanel;
     private CardLayout cardLayout;
     private JPanel listContainer;
@@ -25,14 +25,17 @@ public class PinsTabBuilder {
 
     private boolean isUpdatingProgrammatically = false;
 
-    public PinsTabBuilder(ApplicationCore applicationCore) {
-        super();
+    public PinsWindow(ApplicationCore applicationCore) {
         this.applicationCore = applicationCore;
+        this.initializeWindow();
+        this.applicationCore.onPinSelectionChanged = this::refreshViews;
     }
 
-    public JPanel buildTab() {
-        JPanel tabContainer = new JPanel(new BorderLayout());
-        tabContainer.setBackground(ColorPalette.BACKGROUND_DARK);
+    private void initializeWindow() {
+        this.frame = new JFrame("Map Pins & DM Notes Manager");
+        this.frame.setSize(450, 650);
+        this.frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE); // Hides window instead of closing app
+        this.frame.setLocationRelativeTo(this.applicationCore.getMainFrame());
 
         this.cardLayout = new CardLayout();
         this.mainCardPanel = new JPanel(this.cardLayout);
@@ -83,12 +86,15 @@ public class PinsTabBuilder {
 
         this.mainCardPanel.add(listWrapper, "LIST");
         this.mainCardPanel.add(detailsWrapper, "DETAILS");
-        tabContainer.add(this.mainCardPanel, BorderLayout.CENTER);
 
-        this.applicationCore.onPinSelectionChanged = this::refreshViews;
+        this.frame.add(this.mainCardPanel);
         this.refreshViews();
+    }
 
-        return tabContainer;
+    public void showWindow() {
+        this.refreshViews();
+        this.frame.setVisible(true);
+        this.frame.toFront();
     }
 
     private void refreshViews() {

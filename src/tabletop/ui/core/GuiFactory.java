@@ -22,7 +22,6 @@ import tabletop.ui.layout.ToolbarBuilder;
 import tabletop.ui.tabs.DrawingTabBuilder;
 import tabletop.ui.tabs.EffectsTabBuilder;
 import tabletop.ui.tabs.NotesTabBuilder;
-import tabletop.ui.tabs.PinsTabBuilder;
 import tabletop.ui.tabs.RulersTabBuilder;
 import tabletop.ui.tabs.TokensTabBuilder;
 import tabletop.ui.theme.ColorPalette;
@@ -43,7 +42,10 @@ public class GuiFactory {
         MainFrame mainFrame = this.applicationCore.getMainFrame();
         mainFrame.setLayout(new BorderLayout());
 
-        // 1. Right Sidebar Tabs (Declared first so the top toolbar can navigate to it)
+        // --- NEW: Initialize the detached Map Pins Window ---
+        PinsWindow pinsWindow = new PinsWindow(this.applicationCore);
+
+        // 1. Right Sidebar Tabs (Removed Pins List)
         JTabbedPane rightSidebarTabs = new JTabbedPane();
         rightSidebarTabs.setBackground(ColorPalette.BACKGROUND_DARK);
         rightSidebarTabs.setForeground(ColorPalette.TEXT_LIGHT);
@@ -52,7 +54,6 @@ public class GuiFactory {
         rightSidebarTabs.addTab("Tokens", new TokensTabBuilder(this.applicationCore).buildTab());
         rightSidebarTabs.addTab("Effects", new EffectsTabBuilder(this.applicationCore).buildTab());
         rightSidebarTabs.addTab("Notes", new NotesTabBuilder(this.applicationCore).buildTab());
-        rightSidebarTabs.addTab("Pins List", new PinsTabBuilder(this.applicationCore).buildTab());
 
         rightSidebarTabs.setPreferredSize(new Dimension(350, mainFrame.getHeight()));
         rightSidebarTabs.setMinimumSize(new Dimension(300, 0));
@@ -115,13 +116,8 @@ public class GuiFactory {
                 this.applicationCore.getDataState().getMapPins().add(newPin);
                 this.applicationCore.getToolState().setSelectedPinIndex(this.applicationCore.getDataState().getMapPins().size() - 1);
 
-                // Automatically jump to the Pins List right-tab so they can edit notes immediately
-                for (int i = 0; i < rightSidebarTabs.getTabCount(); i++) {
-                    if (rightSidebarTabs.getTitleAt(i).equals("Pins List")) {
-                        rightSidebarTabs.setSelectedIndex(i);
-                        break;
-                    }
-                }
+                // Pop open the floating window straight to the details
+                pinsWindow.showWindow();
 
                 if(this.applicationCore.onPinSelectionChanged != null) this.applicationCore.onPinSelectionChanged.run();
                 this.applicationCore.refreshDisplay();
@@ -149,12 +145,8 @@ public class GuiFactory {
         JButton pinsListBtn = new JButton("Open Pins List");
         this.styleButton(pinsListBtn, ColorPalette.BUTTON_PRIMARY);
         pinsListBtn.addActionListener(e -> {
-            for (int i = 0; i < rightSidebarTabs.getTabCount(); i++) {
-                if (rightSidebarTabs.getTitleAt(i).equals("Pins List")) {
-                    rightSidebarTabs.setSelectedIndex(i);
-                    break;
-                }
-            }
+            this.applicationCore.getToolState().setSelectedPinIndex(null); // Clear selection to default to list
+            pinsWindow.showWindow();
         });
 
         pinsTopPanel.add(dropPinBtn);
@@ -178,7 +170,6 @@ public class GuiFactory {
             }
         });
 
-        // CONSTRAIN HEIGHT TO REMOVE DEAD SPACE (75 is perfect for a tab header + 1 row of buttons)
         topToolbarsTabs.setPreferredSize(new Dimension(mainFrame.getWidth(), 75));
         mainFrame.add(topToolbarsTabs, BorderLayout.NORTH);
 
