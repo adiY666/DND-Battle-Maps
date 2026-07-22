@@ -24,7 +24,6 @@ public class ApplicationCore {
     private CanvasPanel canvasPanel;
     private PlayerFrame playerFrame;
 
-    // Callback hooks to tell the UI tabs to update when data changes
     public Runnable onTokenListChanged;
     public Runnable onSelectionChanged;
     public Runnable onPinSelectionChanged;
@@ -38,16 +37,15 @@ public class ApplicationCore {
     }
 
     public void initializeApplication() {
-        // 1. Initialize the core window frames and drawing canvases
         this.mainFrame = new MainFrame(this);
         this.canvasPanel = new CanvasPanel(this);
         this.playerFrame = new PlayerFrame(this);
 
-        // 2. Delegate the complex layout building to the Factory
         GuiFactory guiFactory = new GuiFactory(this);
         guiFactory.constructUserInterface();
 
-        // 3. Launch the application
+        new tabletop.controller.KeybindController(this);
+
         this.mainFrame.setVisible(true);
     }
 
@@ -100,7 +98,6 @@ public class ApplicationCore {
                         EffectModel effect = iterator.next();
                         effect.setRemainingTurns(effect.getRemainingTurns() - 1);
 
-                        // Remove the effect if its duration has hit 0
                         if (effect.getRemainingTurns() <= 0) {
                             iterator.remove();
                         }

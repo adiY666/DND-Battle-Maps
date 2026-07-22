@@ -3,37 +3,28 @@ package tabletop.controller;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 
 import tabletop.main.ApplicationCore;
 import tabletop.main.ToolType;
-import tabletop.main.DrawingSubtool;
+import tabletop.model.TokenModel;
+import tabletop.state.Coordinate;
 import tabletop.state.DataState;
 import tabletop.state.ToolState;
-import tabletop.state.Coordinate;
-import tabletop.model.TokenModel;
-import tabletop.model.DrawingModel;
-import tabletop.model.TemplateModel;
-import tabletop.model.PinModel;
 
 /**
- * Handles all mouse and scroll wheel interactions on the canvas.
+ * Handles all mouse interactions (clicks, drags, scrolls) on the map canvas.
  *
  * @author Adi
  */
 public class InteractionController extends MouseAdapter {
 
     private final ApplicationCore applicationCore;
+
+    private int lastMouseX;
+    private int lastMouseY;
+    private boolean isDraggingToken = false;
     private boolean isPanning = false;
-    private boolean isDrawing = false;
-    private boolean isErasing = false;
-    private boolean isPointing = false;
-    private double panStartHorizontal;
-    private double panStartVertical;
-    private Integer draggingTokenIdentifier = null;
-    private Integer draggingTemplateIdentifier = null;
-    private Integer draggingPinIndex = null;
 
     public InteractionController(ApplicationCore applicationCore) {
         super();
@@ -41,390 +32,207 @@ public class InteractionController extends MouseAdapter {
     }
 
     @Override
-    public void mousePressed(MouseEvent mouseEvent) {
-        if(SwingUtilities.isLeftMouseButton(mouseEvent)) {
-            this.handleLeftPress(mouseEvent);
-        } else if(SwingUtilities.isRightMouseButton(mouseEvent)) {
-            this.handleRightPress(mouseEvent);
-        }
-    }
+    public void mousePressed(MouseEvent e) {
+        this.lastMouseX = e.getX();
+        this.lastMouseY = e.getY();
 
-    @Override
-    public void mouseMoved(MouseEvent mouseEvent) {
         DataState dataState = this.applicationCore.getDataState();
         ToolState toolState = this.applicationCore.getToolState();
-        Coordinate logicalPos = dataState.convertScreenToLogical(mouseEvent.getX(), mouseEvent.getY());
+        Coordinate logicalClick = dataState.convertScreenToLogical(e.getX(), e.getY());
 
-        Integer tokenId = toolState.getSelectedTokenIdentifier();
-        if(tokenId != null) {
-            TokenModel token = dataState.getActiveTokens().get(tokenId);
-            if(token != null && token.isShowMovementRange()) {
-                double targetX = dataState.isSnapToGrid() ? Math.floor(logicalPos.getCoordinateHorizontal()) : logicalPos.getCoordinateHorizontal() - (token.getGridScale() / 2.0);
-                double targetY = dataState.isSnapToGrid() ? Math.floor(logicalPos.getCoordinateVertical()) : logicalPos.getCoordinateVertical() - (token.getGridScale() / 2.0);
-
-                double dist = Math.hypot(targetX - token.getPositionHorizontal(), targetY - token.getPositionVertical());
-                if(dist <= token.getMovementSpeed()) {
-                    toolState.setHoverLogicalX(targetX);
-                    toolState.setHoverLogicalY(targetY);
-                    toolState.setHoverValid(true);
-                } else {
-                    toolState.setHoverValid(false);
-                }
-                this.applicationCore.refreshDisplay();
-                return;
-            }
+        // 1. Handle Map Panning (Middle Click)
+        if (SwingUtilities.isMiddleMouseButton(e)) {
+            this.isPanning = true;
+            return;
         }
 
-        if(toolState.isHoverValid()) {
-            toolState.setHoverValid(false);
-            this.applicationCore.refreshDisplay();
-        }
-    }
-
-    private void handleLeftPress(MouseEvent mouseEvent) {
-        DataState dataState = this.applicationCore.getDataState();
-        ToolState toolState = this.applicationCore.getToolState();
-        Coordinate logicalPosition = dataState.convertScreenToLogical(mouseEvent.getX(), mouseEvent.getY());
-
-        // 1. Can we select a Map Pin?
-        Integer pinHit = this.findPinAt(logicalPosition);
-        if(pinHit != null) {
-            toolState.setSelectedPinIndex(pinHit);
-            toolState.setSelectedTokenIdentifier(null);
-            toolState.setSelectedTemplateIdentifier(null);
-            this.draggingPinIndex = pinHit;
-            this.panStartHorizontal = mouseEvent.getX();
-            this.panStartVertical = mouseEvent.getY();
-
-            this.triggerAllSelectionCallbacks();
+        // 2. Handle Pointing Arrow (Right Click)
+        if (SwingUtilities.isRightMouseButton(e)) {
+            toolState.setPointerStart(logicalClick);
+            toolState.setPointerEnd(logicalClick);
             this.applicationCore.refreshDisplay();
             return;
         }
 
-        if(toolState.getCurrentTool() == ToolType.DRAWING) {
-            if(toolState.getDrawingSubtool() == null || toolState.getDrawingSubtool() == DrawingSubtool.PEN) {
-                this.isDrawing = true;
-                DrawingModel drawingModel = new DrawingModel();
-                drawingModel.getDrawingPoints().add(logicalPosition);
-                drawingModel.setDrawingColor(toolState.getCurrentDrawingColor());
-                drawingModel.setStrokeWidth(toolState.getCurrentDrawingStrokeWidth());
-                drawingModel.setStrokeOpacity(toolState.getCurrentDrawingOpacity());
-                dataState.getCanvasDrawings().add(drawingModel);
-            } else if(toolState.getDrawingSubtool() == DrawingSubtool.ERASER) {
-                this.isErasing = true;
-                this.eraseDrawingsAt(logicalPosition);
-            }
-            return;
-        }
+        // 3. Handle Token Tool Interactions (Left Click)
+        if (SwingUtilities.isLeftMouseButton(e) && toolState.getCurrentTool() == ToolType.TOKEN) {
 
-        if(toolState.getCurrentTool() == ToolType.TEMPLATE) {
-            Integer hitTemplate = this.findTemplateAt(logicalPosition);
-            if(hitTemplate != null) {
-                toolState.setSelectedTemplateIdentifier(hitTemplate);
-                this.draggingTemplateIdentifier = hitTemplate;
-                this.panStartHorizontal = mouseEvent.getX();
-                this.panStartVertical = mouseEvent.getY();
-            } else {
-                TemplateModel newTemplate = new TemplateModel();
-                newTemplate.setIdentifier((int)(System.currentTimeMillis() % 100000));
-                newTemplate.setPositionHorizontal(logicalPosition.getCoordinateHorizontal());
-                newTemplate.setPositionVertical(logicalPosition.getCoordinateVertical());
-                newTemplate.setGeometryType(toolState.getDefaultTemplateType());
-                newTemplate.setDisplayColor(toolState.getDefaultTemplateColor());
-                newTemplate.setPrimarySize(toolState.getDefaultTemplatePrimarySize());
-                newTemplate.setSecondarySize(toolState.getDefaultTemplateSecondarySize());
-                newTemplate.setHeadingAngle(toolState.getDefaultTemplateAngle());
+            // --- CLICK-TO-MOVE WITHIN RANGE LOGIC ---
+            Integer selectedTokenId = toolState.getSelectedTokenIdentifier();
+            if (selectedTokenId != null) {
+                TokenModel selectedToken = dataState.getActiveTokens().get(selectedTokenId);
 
-                dataState.getActiveTemplates().add(newTemplate);
-                toolState.setSelectedTemplateIdentifier(newTemplate.getIdentifier());
-                this.draggingTemplateIdentifier = newTemplate.getIdentifier();
-                this.panStartHorizontal = mouseEvent.getX();
-                this.panStartVertical = mouseEvent.getY();
-            }
-            toolState.setCurrentTool(ToolType.TOKEN);
-            this.triggerAllSelectionCallbacks();
-            this.applicationCore.refreshDisplay();
-            return;
-        }
+                if (selectedToken != null && selectedToken.isShowMovementRange()) {
+                    double tokenCenterX = selectedToken.getPositionHorizontal() + (selectedToken.getGridScale() / 2.0);
+                    double tokenCenterY = selectedToken.getPositionVertical() + (selectedToken.getGridScale() / 2.0);
 
-        // 2. Can we select a Ruler?
-        Integer hitTemplate = this.findTemplateAt(logicalPosition);
-        if(hitTemplate != null) {
-            toolState.setSelectedTemplateIdentifier(hitTemplate);
-            toolState.setSelectedTokenIdentifier(null);
-            toolState.setSelectedPinIndex(null);
-            this.draggingTemplateIdentifier = hitTemplate;
-            this.panStartHorizontal = mouseEvent.getX();
-            this.panStartVertical = mouseEvent.getY();
-            this.triggerAllSelectionCallbacks();
-            this.applicationCore.refreshDisplay();
-            return;
-        }
+                    double distance = Math.hypot(logicalClick.getCoordinateHorizontal() - tokenCenterX, logicalClick.getCoordinateVertical() - tokenCenterY);
+                    double allowedRange = selectedToken.getMovementSpeed() + (selectedToken.getGridScale() / 2.0);
 
-        // 3. Can we select a Token?
-        Integer tokenHit = this.findTokenAt(logicalPosition);
-        if(tokenHit != null) {
-            toolState.setSelectedTokenIdentifier(tokenHit);
-            toolState.setSelectedTemplateIdentifier(null);
-            toolState.setSelectedPinIndex(null);
-            this.draggingTokenIdentifier = tokenHit;
-            this.panStartHorizontal = mouseEvent.getX();
-            this.panStartVertical = mouseEvent.getY();
-
-            TokenModel token = dataState.getActiveTokens().get(tokenHit);
-            if(token != null) token.setShowMovementRange(true);
-
-            this.triggerAllSelectionCallbacks();
-            this.applicationCore.refreshDisplay();
-            return;
-        }
-
-        // Jump token to space (If range is active)
-        Integer selectedId = toolState.getSelectedTokenIdentifier();
-        if(selectedId != null) {
-            TokenModel token = dataState.getActiveTokens().get(selectedId);
-            if(token != null && token.isShowMovementRange()) {
-                double targetX = dataState.isSnapToGrid() ? Math.floor(logicalPosition.getCoordinateHorizontal()) : logicalPosition.getCoordinateHorizontal() - (token.getGridScale() / 2.0);
-                double targetY = dataState.isSnapToGrid() ? Math.floor(logicalPosition.getCoordinateVertical()) : logicalPosition.getCoordinateVertical() - (token.getGridScale() / 2.0);
-
-                double dist = Math.hypot(targetX - token.getPositionHorizontal(), targetY - token.getPositionVertical());
-                if(dist <= token.getMovementSpeed()) {
-                    token.setPositionHorizontal(targetX);
-                    token.setPositionVertical(targetY);
-                    this.applicationCore.refreshDisplay();
-                    return;
-                }
-            }
-            if(token != null) token.setShowMovementRange(false);
-        }
-
-        // Clicked nothing. Deselect everything and pan map.
-        toolState.setSelectedTokenIdentifier(null);
-        toolState.setSelectedTemplateIdentifier(null);
-        toolState.setSelectedPinIndex(null);
-
-        this.triggerAllSelectionCallbacks();
-
-        this.isPanning = true;
-        this.panStartHorizontal = mouseEvent.getX();
-        this.panStartVertical = mouseEvent.getY();
-        this.applicationCore.refreshDisplay();
-    }
-
-    private void triggerAllSelectionCallbacks() {
-        if(this.applicationCore.onSelectionChanged != null) this.applicationCore.onSelectionChanged.run();
-        if(this.applicationCore.onTemplateSelectionChanged != null) this.applicationCore.onTemplateSelectionChanged.run();
-        if(this.applicationCore.onPinSelectionChanged != null) this.applicationCore.onPinSelectionChanged.run();
-    }
-
-    private void handleRightPress(MouseEvent mouseEvent) {
-        DataState dataState = this.applicationCore.getDataState();
-        ToolState toolState = this.applicationCore.getToolState();
-        Coordinate logicalPosition = dataState.convertScreenToLogical(mouseEvent.getX(), mouseEvent.getY());
-
-        this.isPointing = true;
-        toolState.setPointerStart(logicalPosition);
-        toolState.setPointerEnd(logicalPosition);
-        this.applicationCore.refreshDisplay();
-    }
-
-    @Override
-    public void mouseDragged(MouseEvent mouseEvent) {
-        DataState dataState = this.applicationCore.getDataState();
-
-        if(this.isPointing) {
-            Coordinate logicalPosition = dataState.convertScreenToLogical(mouseEvent.getX(), mouseEvent.getY());
-            this.applicationCore.getToolState().setPointerEnd(logicalPosition);
-            this.applicationCore.refreshDisplay();
-            return;
-        }
-
-        if(this.isPanning) {
-            double deltaX = mouseEvent.getX() - this.panStartHorizontal;
-            double deltaY = mouseEvent.getY() - this.panStartVertical;
-            dataState.setPanHorizontal(dataState.getPanHorizontal() + deltaX);
-            dataState.setPanVertical(dataState.getPanVertical() + deltaY);
-            this.panStartHorizontal = mouseEvent.getX();
-            this.panStartVertical = mouseEvent.getY();
-            this.applicationCore.refreshDisplay();
-        } else if(this.draggingTokenIdentifier != null) {
-            TokenModel token = dataState.getActiveTokens().get(this.draggingTokenIdentifier);
-            if(token != null) {
-                double deltaX = (mouseEvent.getX() - this.panStartHorizontal) / dataState.calculateCellDimension();
-                double deltaY = (mouseEvent.getY() - this.panStartVertical) / dataState.calculateCellDimension();
-                token.setPositionHorizontal(token.getPositionHorizontal() + deltaX);
-                token.setPositionVertical(token.getPositionVertical() + deltaY);
-                this.panStartHorizontal = mouseEvent.getX();
-                this.panStartVertical = mouseEvent.getY();
-                this.applicationCore.refreshDisplay();
-            }
-        } else if(this.draggingTemplateIdentifier != null) {
-            for(TemplateModel tm : dataState.getActiveTemplates()) {
-                if(tm.getIdentifier() == this.draggingTemplateIdentifier) {
-                    double deltaX = (mouseEvent.getX() - this.panStartHorizontal) / dataState.calculateCellDimension();
-                    double deltaY = (mouseEvent.getY() - this.panStartVertical) / dataState.calculateCellDimension();
-                    tm.setPositionHorizontal(tm.getPositionHorizontal() + deltaX);
-                    tm.setPositionVertical(tm.getPositionVertical() + deltaY);
-                    this.panStartHorizontal = mouseEvent.getX();
-                    this.panStartVertical = mouseEvent.getY();
-                    this.applicationCore.refreshDisplay();
-                    break;
-                }
-            }
-        } else if(this.draggingPinIndex != null) {
-            // Drag Map Pin
-            PinModel pin = dataState.getMapPins().get(this.draggingPinIndex);
-            double deltaX = (mouseEvent.getX() - this.panStartHorizontal) / dataState.calculateCellDimension();
-            double deltaY = (mouseEvent.getY() - this.panStartVertical) / dataState.calculateCellDimension();
-            pin.setPositionHorizontal(pin.getPositionHorizontal() + deltaX);
-            pin.setPositionVertical(pin.getPositionVertical() + deltaY);
-            this.panStartHorizontal = mouseEvent.getX();
-            this.panStartVertical = mouseEvent.getY();
-            this.applicationCore.refreshDisplay();
-        } else if(this.isDrawing) {
-            Coordinate logicalPosition = dataState.convertScreenToLogical(mouseEvent.getX(), mouseEvent.getY());
-            if(!dataState.getCanvasDrawings().isEmpty()) {
-                DrawingModel currentDrawing = dataState.getCanvasDrawings().get(dataState.getCanvasDrawings().size() - 1);
-                currentDrawing.getDrawingPoints().add(logicalPosition);
-                this.applicationCore.refreshDisplay();
-            }
-        } else if(this.isErasing) {
-            Coordinate logicalPosition = dataState.convertScreenToLogical(mouseEvent.getX(), mouseEvent.getY());
-            this.eraseDrawingsAt(logicalPosition);
-        }
-    }
-
-    @Override
-    public void mouseReleased(MouseEvent mouseEvent) {
-        if(SwingUtilities.isRightMouseButton(mouseEvent)) {
-            if(this.isPointing) {
-                this.isPointing = false;
-                ToolState toolState = this.applicationCore.getToolState();
-                Coordinate start = toolState.getPointerStart();
-                Coordinate end = toolState.getPointerEnd();
-
-                if(start != null && end != null) {
-                    double dist = Math.hypot(start.getCoordinateHorizontal() - end.getCoordinateHorizontal(), start.getCoordinateVertical() - end.getCoordinateVertical());
-                    if(dist < 0.1) {
-                        Integer tokenHit = this.findTokenAt(start);
-                        if(tokenHit != null) {
-                            toolState.setSelectedTokenIdentifier(tokenHit);
-                            if(this.applicationCore.onSelectionChanged != null) this.applicationCore.onSelectionChanged.run();
-                            this.applicationCore.refreshDisplay();
-                            JPopupMenu contextMenu = new JPopupMenu();
-                            contextMenu.show(this.applicationCore.getCanvasPanel(), mouseEvent.getX(), mouseEvent.getY());
+                    if (distance <= allowedRange) {
+                        if (dataState.isSnapToGrid()) {
+                            selectedToken.setPositionHorizontal(Math.floor(logicalClick.getCoordinateHorizontal()));
+                            selectedToken.setPositionVertical(Math.floor(logicalClick.getCoordinateVertical()));
+                        } else {
+                            selectedToken.setPositionHorizontal(logicalClick.getCoordinateHorizontal() - (selectedToken.getGridScale() / 2.0));
+                            selectedToken.setPositionVertical(logicalClick.getCoordinateVertical() - (selectedToken.getGridScale() / 2.0));
                         }
+                        this.applicationCore.refreshDisplay();
+                        return; // Stop processing so we don't select a different token by accident
                     }
                 }
-                toolState.setPointerStart(null);
-                toolState.setPointerEnd(null);
+            }
+
+            // --- STANDARD: SELECT OR DRAG TOKEN ---
+            boolean tokenFound = false;
+
+            // Loop backwards to select the token rendered on top if they are overlapping
+            for (int i = dataState.getTokenOrdering().size() - 1; i >= 0; i--) {
+                Integer tokenId = dataState.getTokenOrdering().get(i);
+                TokenModel token = dataState.getActiveTokens().get(tokenId);
+
+                if (token != null) {
+                    double tx = token.getPositionHorizontal();
+                    double ty = token.getPositionVertical();
+                    double size = token.getGridScale();
+
+                    // Check if the click falls within the token's bounding box
+                    if (logicalClick.getCoordinateHorizontal() >= tx && logicalClick.getCoordinateHorizontal() <= tx + size &&
+                            logicalClick.getCoordinateVertical() >= ty && logicalClick.getCoordinateVertical() <= ty + size) {
+
+                        // Turn off range for the previously selected token if it is different
+                        Integer prevSelectedId = toolState.getSelectedTokenIdentifier();
+                        if (prevSelectedId != null && !prevSelectedId.equals(tokenId)) {
+                            TokenModel prevToken = dataState.getActiveTokens().get(prevSelectedId);
+                            if (prevToken != null) prevToken.setShowMovementRange(false);
+                        }
+
+                        // Automatically turn on the range for the newly selected token
+                        token.setShowMovementRange(true);
+
+                        toolState.setSelectedTokenIdentifier(tokenId);
+                        this.isDraggingToken = true;
+                        tokenFound = true;
+
+                        if (this.applicationCore.onSelectionChanged != null) {
+                            this.applicationCore.onSelectionChanged.run();
+                        }
+                        this.applicationCore.refreshDisplay();
+                        break;
+                    }
+                }
+            }
+
+            // If we clicked on an empty space, deselect the current token
+            if (!tokenFound) {
+                // Turn off range before deselecting
+                Integer prevSelectedId = toolState.getSelectedTokenIdentifier();
+                if (prevSelectedId != null) {
+                    TokenModel prevToken = dataState.getActiveTokens().get(prevSelectedId);
+                    if (prevToken != null) prevToken.setShowMovementRange(false);
+                }
+
+                toolState.setSelectedTokenIdentifier(null);
+                if (this.applicationCore.onSelectionChanged != null) {
+                    this.applicationCore.onSelectionChanged.run();
+                }
+
+                // ---> FIX 1: Allow the user to drag the background to pan the map! <---
+                this.isPanning = true;
+
                 this.applicationCore.refreshDisplay();
             }
-            return;
-        }
-
-        this.isPanning = false;
-        this.isDrawing = false;
-        this.isErasing = false;
-
-        if(this.draggingTokenIdentifier != null) {
-            DataState dataState = this.applicationCore.getDataState();
-            TokenModel token = dataState.getActiveTokens().get(this.draggingTokenIdentifier);
-            if(token != null && dataState.isSnapToGrid()) {
-                token.setPositionHorizontal(Math.floor(token.getPositionHorizontal() + 0.5));
-                token.setPositionVertical(Math.floor(token.getPositionVertical() + 0.5));
-            }
-            this.draggingTokenIdentifier = null;
-            this.applicationCore.refreshDisplay();
-        }
-
-        if(this.draggingTemplateIdentifier != null) {
-            this.draggingTemplateIdentifier = null;
-            this.applicationCore.refreshDisplay();
-        }
-
-        if(this.draggingPinIndex != null) {
-            this.draggingPinIndex = null;
-            this.applicationCore.refreshDisplay();
         }
     }
 
     @Override
-    public void mouseWheelMoved(MouseWheelEvent mouseWheelEvent) {
-        DataState dataState = this.applicationCore.getDataState();
-        int mouseX = mouseWheelEvent.getX();
-        int mouseY = mouseWheelEvent.getY();
-        Coordinate logicalPos = dataState.convertScreenToLogical(mouseX, mouseY);
+    public void mouseDragged(MouseEvent e) {
+        int dx = e.getX() - this.lastMouseX;
+        int dy = e.getY() - this.lastMouseY;
+        this.lastMouseX = e.getX();
+        this.lastMouseY = e.getY();
 
-        double zoomFactor = 1.1;
-        double newZoom = dataState.getZoomLevel();
-        if(mouseWheelEvent.getWheelRotation() > 0) newZoom /= zoomFactor;
-        else newZoom *= zoomFactor;
-        newZoom = Math.max(0.1, Math.min(newZoom, 5.0));
+        DataState dataState = this.applicationCore.getDataState();
+        ToolState toolState = this.applicationCore.getToolState();
+        Coordinate logicalClick = dataState.convertScreenToLogical(e.getX(), e.getY());
+
+        // 1. Handle Map Panning
+        if (this.isPanning) {
+            dataState.setPanHorizontal(dataState.getPanHorizontal() + dx);
+            dataState.setPanVertical(dataState.getPanVertical() + dy);
+            this.applicationCore.refreshDisplay();
+            return;
+        }
+
+        // 2. Handle Pointing Arrow
+        if (SwingUtilities.isRightMouseButton(e)) {
+            toolState.setPointerEnd(logicalClick);
+            this.applicationCore.refreshDisplay();
+            return;
+        }
+
+        // 3. Handle Token Dragging
+        if (this.isDraggingToken && toolState.getCurrentTool() == ToolType.TOKEN) {
+            Integer selectedId = toolState.getSelectedTokenIdentifier();
+            if (selectedId != null) {
+                TokenModel token = dataState.getActiveTokens().get(selectedId);
+                if (token != null) {
+                    double cellDim = dataState.calculateCellDimension();
+                    double logicalDx = dx / cellDim;
+                    double logicalDy = dy / cellDim;
+
+                    token.setPositionHorizontal(token.getPositionHorizontal() + logicalDx);
+                    token.setPositionVertical(token.getPositionVertical() + logicalDy);
+                    this.applicationCore.refreshDisplay();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+        this.isPanning = false;
+
+        DataState dataState = this.applicationCore.getDataState();
+        ToolState toolState = this.applicationCore.getToolState();
+
+        // 1. Clear the Pointing Arrow
+        if (SwingUtilities.isRightMouseButton(e)) {
+            toolState.setPointerStart(null);
+            toolState.setPointerEnd(null);
+            this.applicationCore.refreshDisplay();
+        }
+
+        // 2. Handle Snap-to-Grid on Token Drop
+        if (this.isDraggingToken) {
+            this.isDraggingToken = false;
+
+            if (dataState.isSnapToGrid()) {
+                Integer selectedId = toolState.getSelectedTokenIdentifier();
+                if (selectedId != null) {
+                    TokenModel token = dataState.getActiveTokens().get(selectedId);
+                    if (token != null) {
+                        token.setPositionHorizontal(Math.round(token.getPositionHorizontal()));
+                        token.setPositionVertical(Math.round(token.getPositionVertical()));
+                        this.applicationCore.refreshDisplay();
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        DataState dataState = this.applicationCore.getDataState();
+
+        // ---> FIX 2: Switched to standard getWheelRotation() for mouse compatibility <---
+        double zoomChange = e.getWheelRotation() * -0.1;
+        double newZoom = dataState.getZoomLevel() + zoomChange;
+
+        if (newZoom < 0.1) newZoom = 0.1;
+        if (newZoom > 5.0) newZoom = 5.0;
+
         dataState.setZoomLevel(newZoom);
-
-        double newCellDimension = dataState.calculateCellDimension();
-        double newPanX = mouseX - (logicalPos.getCoordinateHorizontal() * newCellDimension);
-        double newPanY = mouseY - (logicalPos.getCoordinateVertical() * newCellDimension);
-
-        dataState.setPanHorizontal(newPanX);
-        dataState.setPanVertical(newPanY);
         this.applicationCore.refreshDisplay();
-    }
-
-    private void eraseDrawingsAt(Coordinate logicalPosition) {
-        DataState dataState = this.applicationCore.getDataState();
-        double eraseRadius = 0.5;
-        boolean needsRefresh = false;
-
-        java.util.Iterator<DrawingModel> iterator = dataState.getCanvasDrawings().iterator();
-        while(iterator.hasNext()) {
-            DrawingModel drawing = iterator.next();
-            for(Coordinate pt : drawing.getDrawingPoints()) {
-                double dist = Math.hypot(pt.getCoordinateHorizontal() - logicalPosition.getCoordinateHorizontal(), pt.getCoordinateVertical() - logicalPosition.getCoordinateVertical());
-                if(dist <= eraseRadius) {
-                    iterator.remove();
-                    needsRefresh = true;
-                    break;
-                }
-            }
-        }
-        if(needsRefresh) this.applicationCore.refreshDisplay();
-    }
-
-    private Integer findTokenAt(Coordinate logicalPosition) {
-        DataState dataState = this.applicationCore.getDataState();
-        for(int i = dataState.getTokenOrdering().size() - 1; i >= 0; i--) {
-            Integer tokenId = dataState.getTokenOrdering().get(i);
-            TokenModel token = dataState.getActiveTokens().get(tokenId);
-            if(token != null) {
-                double size = token.getGridScale();
-                if(logicalPosition.getCoordinateHorizontal() >= token.getPositionHorizontal() && logicalPosition.getCoordinateHorizontal() <= token.getPositionHorizontal() + size && logicalPosition.getCoordinateVertical() >= token.getPositionVertical() && logicalPosition.getCoordinateVertical() <= token.getPositionVertical() + size) {
-                    return tokenId;
-                }
-            }
-        }
-        return null;
-    }
-
-    private Integer findTemplateAt(Coordinate logicalPosition) {
-        DataState dataState = this.applicationCore.getDataState();
-        for(int i = dataState.getActiveTemplates().size() - 1; i >= 0; i--) {
-            TemplateModel template = dataState.getActiveTemplates().get(i);
-            double dist = Math.hypot(template.getPositionHorizontal() - logicalPosition.getCoordinateHorizontal(), template.getPositionVertical() - logicalPosition.getCoordinateVertical());
-            if(dist <= 1.0) return template.getIdentifier();
-        }
-        return null;
-    }
-
-    private Integer findPinAt(Coordinate logicalPosition) {
-        DataState dataState = this.applicationCore.getDataState();
-        for(int i = dataState.getMapPins().size() - 1; i >= 0; i--) {
-            PinModel pin = dataState.getMapPins().get(i);
-            // Pins are small, so click radius is half a grid square
-            double dist = Math.hypot(pin.getPositionHorizontal() - logicalPosition.getCoordinateHorizontal(), pin.getPositionVertical() - logicalPosition.getCoordinateVertical());
-            if(dist <= 0.5) return i;
-        }
-        return null;
     }
 }

@@ -27,7 +27,6 @@ public class TokensTabBuilder {
     private JPanel listContainer;
     private JPanel detailsContainer;
 
-    // EXPOSED PUBLICLY SO THE KEYBIND CONTROLLER CAN FIND IT
     public static ToggleSwitch snapCheckBox;
 
     public TokensTabBuilder(ApplicationCore applicationCore) {
@@ -64,7 +63,6 @@ public class TokensTabBuilder {
             if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
         });
 
-        // Initialize the static variable
         snapCheckBox = new ToggleSwitch("Snap to Grid (S)");
         snapCheckBox.setBackground(ColorPalette.BACKGROUND_DARK);
         snapCheckBox.setForeground(ColorPalette.TEXT_LIGHT);
@@ -95,6 +93,15 @@ public class TokensTabBuilder {
         backButton.setForeground(ColorPalette.TEXT_LIGHT);
         backButton.setFocusPainted(false);
         backButton.addActionListener(e -> {
+            // Turn off range before deselecting
+            Integer selectedId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
+            if (selectedId != null) {
+                TokenModel token = this.applicationCore.getDataState().getActiveTokens().get(selectedId);
+                if (token != null) {
+                    token.setShowMovementRange(false);
+                }
+            }
+
             this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
             if(this.applicationCore.onSelectionChanged != null) {
                 this.applicationCore.onSelectionChanged.run();
@@ -403,6 +410,17 @@ public class TokensTabBuilder {
 
         dataState.setPanHorizontal(targetX);
         dataState.setPanVertical(targetY);
+
+        // Turn off old token range before selecting new one
+        Integer prevSelectedId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
+        if (prevSelectedId != null && !prevSelectedId.equals(token.getIdentifier())) {
+            TokenModel prevToken = this.applicationCore.getDataState().getActiveTokens().get(prevSelectedId);
+            if (prevToken != null) prevToken.setShowMovementRange(false);
+        }
+
+        // ---> NEW: Automatically turn on range for the newly jumped-to token! <---
+        token.setShowMovementRange(true);
+
         this.applicationCore.getToolState().setSelectedTokenIdentifier(token.getIdentifier());
         if(this.applicationCore.onSelectionChanged != null) {
             this.applicationCore.onSelectionChanged.run();
