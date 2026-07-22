@@ -1,6 +1,7 @@
 package tabletop.main;
 
 import tabletop.ui.core.MainFrame;
+import tabletop.ui.core.PlayerFrame;
 import tabletop.ui.core.CanvasPanel;
 import tabletop.ui.core.GuiFactory;
 import tabletop.state.DataState;
@@ -18,6 +19,7 @@ public class ApplicationCore {
     private final ToolState toolState;
     private final MainFrame mainFrame;
     private final CanvasPanel canvasPanel;
+    private PlayerFrame playerFrame;
 
     public Runnable onTokenListChanged;
     public Runnable onSelectionChanged;
@@ -31,25 +33,29 @@ public class ApplicationCore {
         this.mainFrame = new MainFrame(this);
         this.canvasPanel = new CanvasPanel(this);
 
-        // Register the global shortcut controller
         new KeybindController(this).registerGlobal();
     }
 
     public void initializeApplication() {
         GuiFactory guiFactory = new GuiFactory(this);
         guiFactory.constructUserInterface();
+
+        // Initialize the player window, but don't show it until the DM clicks the button
+        this.playerFrame = new PlayerFrame(this);
+
         this.mainFrame.setVisible(true);
         this.refreshDisplay();
     }
 
     public void refreshDisplay() {
         this.canvasPanel.repaint();
+
+        // Instantly sync the player screen with the DM screen
+        if(this.playerFrame != null && this.playerFrame.isVisible()) {
+            this.playerFrame.repaintCanvas();
+        }
     }
 
-    /**
-     * Iterates through all tokens, reducing their active effect durations by 1.
-     * Removes effects that have expired and refreshes the UI.
-     */
     public void advanceTurn() {
         boolean effectsChanged = false;
 
@@ -86,5 +92,9 @@ public class ApplicationCore {
 
     public CanvasPanel getCanvasPanel() {
         return this.canvasPanel;
+    }
+
+    public PlayerFrame getPlayerFrame() {
+        return this.playerFrame;
     }
 }

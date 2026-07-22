@@ -21,8 +21,8 @@ public class ToolbarBuilder {
 
     private final ApplicationCore applicationCore;
 
-    // We now use the custom ToggleSwitch
     public static ToggleSwitch snapCheckBox;
+    public static ToggleSwitch blackoutCheckBox;
 
     public ToolbarBuilder(ApplicationCore applicationCore) {
         super();
@@ -45,7 +45,13 @@ public class ToolbarBuilder {
         addMiniBtn.setFocusPainted(false);
         addMiniBtn.addActionListener(e -> this.handleTokenAdd());
 
-        // Uses the new custom slider switch component
+        // --- NEW: Next Turn Button moved here ---
+        JButton nextTurnBtn = new JButton("Next Turn (Enter)");
+        nextTurnBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
+        nextTurnBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        nextTurnBtn.setFocusPainted(false);
+        nextTurnBtn.addActionListener(e -> this.applicationCore.advanceTurn());
+
         snapCheckBox = new ToggleSwitch("Snap to Grid (S)");
         snapCheckBox.setBackground(ColorPalette.TOOLBAR_BACKGROUND);
         snapCheckBox.setForeground(ColorPalette.TEXT_LIGHT);
@@ -54,9 +60,35 @@ public class ToolbarBuilder {
             this.applicationCore.getDataState().setSnapToGrid(snapCheckBox.isSelected());
         });
 
+        // Add all primary map tools
         toolbar.add(loadMapBtn);
         toolbar.add(addMiniBtn);
+        toolbar.add(nextTurnBtn);
         toolbar.add(snapCheckBox);
+
+        toolbar.add(Box.createRigidArea(new Dimension(20, 0)));
+
+        // Player View Controls
+        JButton launchPlayerBtn = new JButton("Launch Player View");
+        launchPlayerBtn.setBackground(ColorPalette.BUTTON_WARNING);
+        launchPlayerBtn.setForeground(ColorPalette.TEXT_LIGHT);
+        launchPlayerBtn.setFocusPainted(false);
+        launchPlayerBtn.addActionListener(e -> {
+            this.applicationCore.getPlayerFrame().setVisible(true);
+            this.applicationCore.refreshDisplay();
+        });
+
+        blackoutCheckBox = new ToggleSwitch("Stop Sharing (Blackout)");
+        blackoutCheckBox.setBackground(ColorPalette.TOOLBAR_BACKGROUND);
+        blackoutCheckBox.setForeground(ColorPalette.BUTTON_DANGER);
+        blackoutCheckBox.setSelected(this.applicationCore.getToolState().isPlayerScreenBlackout());
+        blackoutCheckBox.addActionListener(e -> {
+            this.applicationCore.getToolState().setPlayerScreenBlackout(blackoutCheckBox.isSelected());
+            this.applicationCore.refreshDisplay();
+        });
+
+        toolbar.add(launchPlayerBtn);
+        toolbar.add(blackoutCheckBox);
 
         return toolbar;
     }

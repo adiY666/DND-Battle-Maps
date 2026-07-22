@@ -43,10 +43,7 @@ public class TokensTabBuilder {
         JPanel listWrapper = new JPanel(new BorderLayout());
         listWrapper.setBackground(ColorPalette.BACKGROUND_DARK);
 
-        JPanel topButtons = new JPanel(new GridLayout(1, 2, 5, 0));
-        topButtons.setBackground(ColorPalette.BACKGROUND_DARK);
-
-        JButton clearButton = new JButton("Clear All");
+        JButton clearButton = new JButton("Clear All Tokens");
         clearButton.setBackground(ColorPalette.BUTTON_DANGER);
         clearButton.setForeground(ColorPalette.TEXT_LIGHT);
         clearButton.setFocusPainted(false);
@@ -60,15 +57,7 @@ public class TokensTabBuilder {
             if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
         });
 
-        JButton nextTurnBtn = new JButton("Next Turn (Enter)");
-        nextTurnBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
-        nextTurnBtn.setForeground(ColorPalette.TEXT_LIGHT);
-        nextTurnBtn.setFocusPainted(false);
-        nextTurnBtn.addActionListener(event -> this.applicationCore.advanceTurn());
-
-        topButtons.add(clearButton);
-        topButtons.add(nextTurnBtn);
-        listWrapper.add(topButtons, BorderLayout.NORTH);
+        listWrapper.add(clearButton, BorderLayout.NORTH);
 
         this.listContainer = new JPanel();
         this.listContainer.setLayout(new BoxLayout(this.listContainer, BoxLayout.Y_AXIS));

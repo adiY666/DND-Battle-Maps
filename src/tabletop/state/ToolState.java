@@ -37,6 +37,8 @@ public class ToolState {
     private double defaultTemplateSecondarySize = 15.0;
     private double defaultTemplateAngle = 0.0;
 
+    private boolean playerScreenBlackout = false;
+
     public ToolState() {
         super();
         this.currentTool = ToolType.TOKEN;
@@ -190,5 +192,13 @@ public class ToolState {
 
     public void setDefaultTemplateAngle(double defaultTemplateAngle) {
         this.defaultTemplateAngle = defaultTemplateAngle;
+    }
+
+    public boolean isPlayerScreenBlackout() {
+        return this.playerScreenBlackout;
+    }
+
+    public void setPlayerScreenBlackout(boolean playerScreenBlackout) {
+        this.playerScreenBlackout = playerScreenBlackout;
     }
 }
