@@ -5,7 +5,7 @@ package tabletop.model;
  *
  * @author Adi
  */
-public class EffectModel {
+public class EffectModel implements java.io.Serializable {
 
     private String effectName;
     private int remainingTurns;

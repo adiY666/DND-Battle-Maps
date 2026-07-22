@@ -12,6 +12,7 @@ import tabletop.model.TokenModel;
 import tabletop.model.EffectModel;
 import tabletop.ui.theme.ColorPalette;
 import tabletop.ui.core.ColorPicker;
+import tabletop.ui.core.ToggleSwitch;
 
 /**
  * Represents the tokens tab construction instance.
@@ -25,6 +26,9 @@ public class TokensTabBuilder {
     private CardLayout cardLayout;
     private JPanel listContainer;
     private JPanel detailsContainer;
+
+    // EXPOSED PUBLICLY SO THE KEYBIND CONTROLLER CAN FIND IT
+    public static ToggleSwitch snapCheckBox;
 
     public TokensTabBuilder(ApplicationCore applicationCore) {
         super();
@@ -43,6 +47,9 @@ public class TokensTabBuilder {
         JPanel listWrapper = new JPanel(new BorderLayout());
         listWrapper.setBackground(ColorPalette.BACKGROUND_DARK);
 
+        JPanel topControlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        topControlPanel.setBackground(ColorPalette.BACKGROUND_DARK);
+
         JButton clearButton = new JButton("Clear All Tokens");
         clearButton.setBackground(ColorPalette.BUTTON_DANGER);
         clearButton.setForeground(ColorPalette.TEXT_LIGHT);
@@ -57,7 +64,19 @@ public class TokensTabBuilder {
             if(this.applicationCore.onEffectsChanged != null) this.applicationCore.onEffectsChanged.run();
         });
 
-        listWrapper.add(clearButton, BorderLayout.NORTH);
+        // Initialize the static variable
+        snapCheckBox = new ToggleSwitch("Snap to Grid (S)");
+        snapCheckBox.setBackground(ColorPalette.BACKGROUND_DARK);
+        snapCheckBox.setForeground(ColorPalette.TEXT_LIGHT);
+        snapCheckBox.setSelected(this.applicationCore.getDataState().isSnapToGrid());
+        snapCheckBox.addActionListener(e -> {
+            this.applicationCore.getDataState().setSnapToGrid(snapCheckBox.isSelected());
+        });
+
+        topControlPanel.add(clearButton);
+        topControlPanel.add(snapCheckBox);
+
+        listWrapper.add(topControlPanel, BorderLayout.NORTH);
 
         this.listContainer = new JPanel();
         this.listContainer.setLayout(new BoxLayout(this.listContainer, BoxLayout.Y_AXIS));

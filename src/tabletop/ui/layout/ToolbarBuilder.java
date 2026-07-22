@@ -1,6 +1,7 @@
 package tabletop.ui.layout;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.io.File;
 import javax.imageio.ImageIO;
@@ -10,8 +11,8 @@ import tabletop.state.DataState;
 import tabletop.state.Coordinate;
 import tabletop.model.TokenModel;
 import tabletop.ui.theme.ColorPalette;
-import tabletop.ui.core.ToggleSwitch;
 import tabletop.ui.core.PlayerFrame;
+import tabletop.util.SaveLoadUtility;
 
 /**
  * Builds the top main menu toolbar.
@@ -22,9 +23,6 @@ public class ToolbarBuilder {
 
     private final ApplicationCore applicationCore;
 
-    public static ToggleSwitch snapCheckBox;
-    public static ToggleSwitch blackoutCheckBox;
-
     public ToolbarBuilder(ApplicationCore applicationCore) {
         super();
         this.applicationCore = applicationCore;
@@ -34,7 +32,15 @@ public class ToolbarBuilder {
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         toolbar.setBackground(ColorPalette.TOOLBAR_BACKGROUND);
 
-        JButton loadMapBtn = new JButton("Load Map");
+        JButton saveBtn = new JButton("Save Session");
+        this.styleButton(saveBtn, ColorPalette.BUTTON_SUCCESS);
+        saveBtn.addActionListener(e -> this.handleSaveSession());
+
+        JButton loadBtn = new JButton("Load Session");
+        this.styleButton(loadBtn, ColorPalette.BUTTON_WARNING);
+        loadBtn.addActionListener(e -> this.handleLoadSession());
+
+        JButton loadMapBtn = new JButton("Set Background");
         this.styleButton(loadMapBtn, ColorPalette.BUTTON_PRIMARY);
         loadMapBtn.addActionListener(e -> this.handleLoadMap());
 
@@ -46,18 +52,12 @@ public class ToolbarBuilder {
         this.styleButton(nextTurnBtn, ColorPalette.BUTTON_PRIMARY);
         nextTurnBtn.addActionListener(e -> this.applicationCore.advanceTurn());
 
-        snapCheckBox = new ToggleSwitch("Snap to Grid (S)");
-        snapCheckBox.setBackground(ColorPalette.TOOLBAR_BACKGROUND);
-        snapCheckBox.setForeground(ColorPalette.TEXT_LIGHT);
-        snapCheckBox.setSelected(this.applicationCore.getDataState().isSnapToGrid());
-        snapCheckBox.addActionListener(e -> {
-            this.applicationCore.getDataState().setSnapToGrid(snapCheckBox.isSelected());
-        });
-
+        toolbar.add(saveBtn);
+        toolbar.add(loadBtn);
+        toolbar.add(Box.createRigidArea(new Dimension(10, 0)));
         toolbar.add(loadMapBtn);
         toolbar.add(addMiniBtn);
         toolbar.add(nextTurnBtn);
-        toolbar.add(snapCheckBox);
 
         toolbar.add(Box.createRigidArea(new Dimension(20, 0)));
 
@@ -71,24 +71,23 @@ public class ToolbarBuilder {
         JButton fullscreenPlayerBtn = new JButton("Toggle Fullscreen (F11)");
         this.styleButton(fullscreenPlayerBtn, ColorPalette.BUTTON_WARNING);
         fullscreenPlayerBtn.addActionListener(e -> {
-            // Check if it's our specific PlayerFrame to safely call the custom method
             if(this.applicationCore.getPlayerFrame() instanceof PlayerFrame) {
                 ((PlayerFrame) this.applicationCore.getPlayerFrame()).toggleFullScreen();
             }
         });
 
-        blackoutCheckBox = new ToggleSwitch("Stop Sharing (Blackout)");
-        blackoutCheckBox.setBackground(ColorPalette.TOOLBAR_BACKGROUND);
-        blackoutCheckBox.setForeground(ColorPalette.BUTTON_DANGER);
-        blackoutCheckBox.setSelected(this.applicationCore.getToolState().isPlayerScreenBlackout());
-        blackoutCheckBox.addActionListener(e -> {
-            this.applicationCore.getToolState().setPlayerScreenBlackout(blackoutCheckBox.isSelected());
+        // --- NEW: Blackout Button instead of a ToggleSwitch ---
+        JButton blackoutBtn = new JButton("Toggle Blackout");
+        this.styleButton(blackoutBtn, ColorPalette.BUTTON_WARNING);
+        blackoutBtn.addActionListener(e -> {
+            boolean isCurrentlyBlackedOut = this.applicationCore.getToolState().isPlayerScreenBlackout();
+            this.applicationCore.getToolState().setPlayerScreenBlackout(!isCurrentlyBlackedOut);
             this.applicationCore.refreshDisplay();
         });
 
         toolbar.add(launchPlayerBtn);
         toolbar.add(fullscreenPlayerBtn);
-        toolbar.add(blackoutCheckBox);
+        toolbar.add(blackoutBtn);
 
         return toolbar;
     }
@@ -99,6 +98,47 @@ public class ToolbarBuilder {
         button.setFocusPainted(false);
         button.setOpaque(true);
         button.setBorderPainted(false);
+    }
+
+    private void handleSaveSession() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("D&D Map Files (*.dndmap)", "dndmap"));
+        if(fileChooser.showSaveDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            if (!file.getName().endsWith(".dndmap")) {
+                file = new File(file.getAbsolutePath() + ".dndmap");
+            }
+            if (SaveLoadUtility.saveSession(this.applicationCore.getDataState(), file)) {
+                JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Session saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Failed to save session. Check console for errors.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void handleLoadSession() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("D&D Map Files (*.dndmap)", "dndmap"));
+        if(fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
+            DataState loadedState = SaveLoadUtility.loadSession(fileChooser.getSelectedFile());
+            if (loadedState != null) {
+                this.applicationCore.setDataState(loadedState);
+
+                this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
+                this.applicationCore.getToolState().setSelectedPinIndex(null);
+                this.applicationCore.getToolState().setSelectedTemplateIdentifier(null);
+
+                this.applicationCore.refreshDisplay();
+
+                if(this.applicationCore.onTokenListChanged != null) this.applicationCore.onTokenListChanged.run();
+                if(this.applicationCore.onSelectionChanged != null) this.applicationCore.onSelectionChanged.run();
+                if(this.applicationCore.onPinSelectionChanged != null) this.applicationCore.onPinSelectionChanged.run();
+
+                JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Session loaded successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Failed to load session. File may be corrupted.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     private void handleLoadMap() {
@@ -132,12 +172,8 @@ public class ToolbarBuilder {
                 this.applicationCore.getToolState().setSelectedTokenIdentifier(newIdentifier);
                 this.applicationCore.refreshDisplay();
 
-                if(this.applicationCore.onTokenListChanged != null) {
-                    this.applicationCore.onTokenListChanged.run();
-                }
-                if(this.applicationCore.onSelectionChanged != null) {
-                    this.applicationCore.onSelectionChanged.run();
-                }
+                if(this.applicationCore.onTokenListChanged != null) this.applicationCore.onTokenListChanged.run();
+                if(this.applicationCore.onSelectionChanged != null) this.applicationCore.onSelectionChanged.run();
 
             } catch(Exception exception) {
                 exception.printStackTrace();

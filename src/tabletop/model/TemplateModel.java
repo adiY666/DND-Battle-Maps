@@ -5,7 +5,7 @@ package tabletop.model;
  *
  * @author Adi
  */
-public class TemplateModel {
+public class TemplateModel implements java.io.Serializable {
     private int identifier;
     private String geometryType = "circle";
     private String displayColor = "Yellow";

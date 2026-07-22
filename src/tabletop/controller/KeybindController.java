@@ -3,6 +3,8 @@ package tabletop.controller;
 import tabletop.main.ApplicationCore;
 import tabletop.main.ToolType;
 import tabletop.model.TokenModel;
+import tabletop.ui.tabs.TokensTabBuilder;
+
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.KeyEvent;
@@ -80,8 +82,8 @@ public class KeybindController implements KeyEventDispatcher {
                 this.applicationCore.getDataState().setSnapToGrid(!currentSnap);
 
                 // Keep the UI checkbox checkmark in sync
-                if(tabletop.ui.layout.ToolbarBuilder.snapCheckBox != null) {
-                    tabletop.ui.layout.ToolbarBuilder.snapCheckBox.setSelected(!currentSnap);
+                if(TokensTabBuilder.snapCheckBox != null) {
+                    TokensTabBuilder.snapCheckBox.setSelected(!currentSnap);
                 }
 
                 return true;

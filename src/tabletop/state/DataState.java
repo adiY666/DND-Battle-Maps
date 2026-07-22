@@ -16,7 +16,7 @@ import tabletop.model.InitiativeModel; // Added missing import
  *
  * @author Adi
  */
-public class DataState {
+public class DataState implements java.io.Serializable {
 
     private double zoomLevel = 1.0;
     private double panHorizontal = 0.0;

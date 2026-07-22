@@ -5,7 +5,7 @@ package tabletop.model;
  *
  * @author Adi
  */
-public class PinModel {
+public class PinModel implements java.io.Serializable {
 
     private double positionHorizontal;
     private double positionVertical;
