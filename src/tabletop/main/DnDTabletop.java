@@ -12,22 +12,20 @@ import javax.swing.UIManager;
  */
 public class DnDTabletop {
 
-    /**
-     * Launches this application.
-     *
-     * @param arguments the command line arguments
-     */
-    public static void main(String... arguments) {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch(Exception exception) {
-            exception.printStackTrace();
-        }
-        SwingUtilities.invokeLater(() -> {
-            ApplicationCore applicationCore = new ApplicationCore();
-            applicationCore.initializeApplication();
-        });
-    }
+    public static void main(String[] args) {
 
+        // --- ADD THIS BLOCK ---
+        // Forces Java to respect custom background colors instead of using the OS defaults
+        try {
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // ----------------------
+
+        // Your existing startup code should look something like this:
+        ApplicationCore applicationCore = new ApplicationCore();
+        applicationCore.initializeApplication();
+    }
 }
 

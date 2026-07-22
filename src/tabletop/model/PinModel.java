@@ -1,75 +1,36 @@
 package tabletop.model;
 
 /**
- * Represents a map bookmark instance.
- * <p></p>
- * Stores location markers for this tabletop.model.PinModel.
+ * Represents a DM-only map pin for notes and room details.
  *
  * @author Adi
  */
-public class PinModel implements java.io.Serializable {
+public class PinModel {
 
-    private int identifier;
-    private String displayName;
-    private String displayColor;
     private double positionHorizontal;
     private double positionVertical;
+    private String title = "New Map Note";
+    private String description = "Enter your secret DM notes here...";
+    private String pinColor = "Red";
 
-    /**
-     * Instantiates a new map pin.
-     *
-     * @param identifier         the unique integer
-     * @param displayName        the descriptive string
-     * @param positionHorizontal the x location
-     * @param positionVertical   the y location
-     * @param displayColor       the string color
-     */
-    public PinModel(int identifier, String displayName, double positionHorizontal, double positionVertical, String displayColor) {
-        this.identifier = identifier;
-        this.displayName = displayName;
+    public PinModel(double positionHorizontal, double positionVertical) {
+        super();
         this.positionHorizontal = positionHorizontal;
         this.positionVertical = positionVertical;
-        this.displayColor = displayColor;
     }
 
-    public int getIdentifier() {
-        return this.identifier;
-    }
+    public double getPositionHorizontal() { return this.positionHorizontal; }
+    public void setPositionHorizontal(double positionHorizontal) { this.positionHorizontal = positionHorizontal; }
 
-    public void setIdentifier(int identifier) {
-        this.identifier = identifier;
-    }
+    public double getPositionVertical() { return this.positionVertical; }
+    public void setPositionVertical(double positionVertical) { this.positionVertical = positionVertical; }
 
-    public String getDisplayName() {
-        return this.displayName;
-    }
+    public String getTitle() { return this.title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public void setDisplayName(String displayName) {
-        this.displayName = displayName;
-    }
+    public String getDescription() { return this.description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public String getDisplayColor() {
-        return this.displayColor;
-    }
-
-    public void setDisplayColor(String displayColor) {
-        this.displayColor = displayColor;
-    }
-
-    public double getPositionHorizontal() {
-        return this.positionHorizontal;
-    }
-
-    public void setPositionHorizontal(double positionHorizontal) {
-        this.positionHorizontal = positionHorizontal;
-    }
-
-    public double getPositionVertical() {
-        return this.positionVertical;
-    }
-
-    public void setPositionVertical(double positionVertical) {
-        this.positionVertical = positionVertical;
-    }
-
+    public String getPinColor() { return this.pinColor; }
+    public void setPinColor(String pinColor) { this.pinColor = pinColor; }
 }

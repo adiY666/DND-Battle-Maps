@@ -21,8 +21,6 @@ public class PlayerCanvasPanel extends JPanel {
         this.applicationCore = applicationCore;
         this.renderEngine = new RenderEngine(this.applicationCore);
         this.setBackground(ColorPalette.BACKGROUND_DARK);
-
-        // No InteractionController is added here! Players cannot click or drag this screen.
     }
 
     @Override
@@ -30,12 +28,10 @@ public class PlayerCanvasPanel extends JPanel {
         super.paintComponent(renderGraphics);
 
         if(this.applicationCore.getToolState().isPlayerScreenBlackout()) {
-            // Draw a completely black screen if the DM stops sharing
             renderGraphics.setColor(Color.BLACK);
             renderGraphics.fillRect(0, 0, this.getWidth(), this.getHeight());
         } else {
-            // Otherwise, render the exact same map and camera angle the DM sees
-            this.renderEngine.renderAll(renderGraphics, this.getWidth(), this.getHeight());
+            this.renderEngine.renderAll(renderGraphics, this.getWidth(), this.getHeight(), true);
         }
     }
 }

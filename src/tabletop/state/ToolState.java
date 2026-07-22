@@ -39,6 +39,9 @@ public class ToolState {
 
     private boolean playerScreenBlackout = false;
 
+    private Coordinate pointerStart = null;
+    private Coordinate pointerEnd = null;
+
     public ToolState() {
         super();
         this.currentTool = ToolType.TOKEN;
@@ -200,5 +203,21 @@ public class ToolState {
 
     public void setPlayerScreenBlackout(boolean playerScreenBlackout) {
         this.playerScreenBlackout = playerScreenBlackout;
+    }
+
+    public Coordinate getPointerStart() {
+        return this.pointerStart;
+    }
+
+    public void setPointerStart(Coordinate pointerStart) {
+        this.pointerStart = pointerStart;
+    }
+
+    public Coordinate getPointerEnd() {
+        return this.pointerEnd;
+    }
+
+    public void setPointerEnd(Coordinate pointerEnd) {
+        this.pointerEnd = pointerEnd;
     }
 }

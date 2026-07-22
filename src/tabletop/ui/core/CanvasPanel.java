@@ -8,7 +8,7 @@ import tabletop.controller.InteractionController;
 import tabletop.ui.theme.ColorPalette;
 
 /**
- * Represents the primary drawing surface for the map.
+ * Represents the primary drawing surface for the DM map.
  *
  * @author Adi
  */
@@ -20,7 +20,7 @@ public class CanvasPanel extends JPanel {
 
     public CanvasPanel(ApplicationCore applicationCore) {
         super();
-        this.setLayout(null); // Critical: Allows the floating tab to anchor dynamically
+        this.setLayout(null);
 
         this.applicationCore = applicationCore;
         this.renderEngine = new RenderEngine(this.applicationCore);
@@ -41,7 +41,7 @@ public class CanvasPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics renderGraphics) {
         super.paintComponent(renderGraphics);
-        this.renderEngine.renderAll(renderGraphics, this.getWidth(), this.getHeight());
+        this.renderEngine.renderAll(renderGraphics, this.getWidth(), this.getHeight(), false);
         this.editorOverlay.updateOverlayPositionAndData();
     }
 }

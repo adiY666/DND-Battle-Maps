@@ -1,29 +1,21 @@
 package tabletop.model;
 
 /**
- * Represents a status condition instance.
- * <p></p>
- * Encapsulates combat effect duration for this tabletop.model.EffectModel.
+ * Represents a temporary status effect applied to a token.
  *
  * @author Adi
  */
-public class EffectModel implements java.io.Serializable {
+public class EffectModel {
 
     private String effectName;
-    private String displayColor;
     private int remainingTurns;
+    private String effectColor;
 
-    /**
-     * Instantiates a new effect.
-     *
-     * @param effectName     the description string
-     * @param remainingTurns the combat rounds
-     * @param displayColor   the color identity
-     */
-    public EffectModel(String effectName, int remainingTurns, String displayColor) {
+    public EffectModel(String effectName, int remainingTurns, String effectColor) {
+        super();
         this.effectName = effectName;
         this.remainingTurns = remainingTurns;
-        this.displayColor = displayColor;
+        this.effectColor = effectColor;
     }
 
     public String getEffectName() {
@@ -34,14 +26,6 @@ public class EffectModel implements java.io.Serializable {
         this.effectName = effectName;
     }
 
-    public String getDisplayColor() {
-        return this.displayColor;
-    }
-
-    public void setDisplayColor(String displayColor) {
-        this.displayColor = displayColor;
-    }
-
     public int getRemainingTurns() {
         return this.remainingTurns;
     }
@@ -50,22 +34,11 @@ public class EffectModel implements java.io.Serializable {
         this.remainingTurns = remainingTurns;
     }
 
-    @Override
-    public boolean equals(Object object) {
-        if (this == object) return true;
-        if (object == null || this.getClass() != object.getClass()) return false;
-        EffectModel that = (EffectModel) object;
-        return this.remainingTurns == that.remainingTurns && java.util.Objects.equals(this.effectName, that.effectName);
+    public String getEffectColor() {
+        return this.effectColor;
     }
 
-    @Override
-    public int hashCode() {
-        return java.util.Objects.hash(this.effectName, this.remainingTurns);
+    public void setEffectColor(String effectColor) {
+        this.effectColor = effectColor;
     }
-
-    @Override
-    public String toString() {
-        return "tabletop.model.EffectModel{name='" + this.effectName + "'}";
-    }
-
 }
