@@ -1,7 +1,7 @@
 package tabletop.model;
 
 /**
- * Represents a DM-only map pin for notes and room details.
+ * Represents a map pin for notes and room details.
  *
  * @author Adi
  */
@@ -10,8 +10,9 @@ public class PinModel {
     private double positionHorizontal;
     private double positionVertical;
     private String title = "New Map Note";
-    private String description = "Enter your secret DM notes here...";
+    private String description = "Enter your notes here...";
     private String pinColor = "Red";
+    private boolean shared = false; // NEW: Determines if players can see this pin
 
     public PinModel(double positionHorizontal, double positionVertical) {
         super();
@@ -33,4 +34,7 @@ public class PinModel {
 
     public String getPinColor() { return this.pinColor; }
     public void setPinColor(String pinColor) { this.pinColor = pinColor; }
+
+    public boolean isShared() { return this.shared; }
+    public void setShared(boolean shared) { this.shared = shared; }
 }

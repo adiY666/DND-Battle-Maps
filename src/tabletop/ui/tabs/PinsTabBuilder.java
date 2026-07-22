@@ -6,7 +6,6 @@ import javax.swing.event.DocumentListener;
 import java.awt.*;
 
 import tabletop.main.ApplicationCore;
-import tabletop.state.Coordinate;
 import tabletop.model.PinModel;
 import tabletop.ui.theme.ColorPalette;
 import tabletop.ui.core.ColorPicker;
@@ -43,37 +42,11 @@ public class PinsTabBuilder {
         JPanel listWrapper = new JPanel(new BorderLayout());
         listWrapper.setBackground(ColorPalette.BACKGROUND_DARK);
 
-        JPanel btnPanel = new JPanel(new GridLayout(1, 2, 5, 0));
-        btnPanel.setBackground(ColorPalette.BACKGROUND_DARK);
-
-        JButton placeBtn = new JButton("+ Drop New Pin");
-        placeBtn.setBackground(ColorPalette.BUTTON_SUCCESS);
-        placeBtn.setForeground(ColorPalette.TEXT_LIGHT);
-        placeBtn.setFocusPainted(false);
-        placeBtn.addActionListener(e -> {
-            Coordinate center = this.applicationCore.getDataState().convertScreenToLogical(this.applicationCore.getCanvasPanel().getWidth() / 2, this.applicationCore.getCanvasPanel().getHeight() / 2);
-            PinModel newPin = new PinModel(center.getCoordinateHorizontal(), center.getCoordinateVertical());
-            this.applicationCore.getDataState().getMapPins().add(newPin);
-
-            this.applicationCore.getToolState().setSelectedPinIndex(this.applicationCore.getDataState().getMapPins().size() - 1);
-            if(this.applicationCore.onPinSelectionChanged != null) this.applicationCore.onPinSelectionChanged.run();
-            this.applicationCore.refreshDisplay();
-        });
-
-        JButton clearBtn = new JButton("Clear All");
-        clearBtn.setBackground(ColorPalette.BUTTON_DANGER);
-        clearBtn.setForeground(ColorPalette.TEXT_LIGHT);
-        clearBtn.setFocusPainted(false);
-        clearBtn.addActionListener(event -> {
-            this.applicationCore.getDataState().getMapPins().clear();
-            this.applicationCore.getToolState().setSelectedPinIndex(null);
-            if(this.applicationCore.onPinSelectionChanged != null) this.applicationCore.onPinSelectionChanged.run();
-            this.applicationCore.refreshDisplay();
-        });
-
-        btnPanel.add(placeBtn);
-        btnPanel.add(clearBtn);
-        listWrapper.add(btnPanel, BorderLayout.NORTH);
+        JLabel listHeader = new JLabel("  Select a Pin to Edit Notes:");
+        listHeader.setForeground(ColorPalette.TEXT_LIGHT);
+        listHeader.setFont(new Font("SansSerif", Font.BOLD, 14));
+        listHeader.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        listWrapper.add(listHeader, BorderLayout.NORTH);
 
         this.listContainer = new JPanel();
         this.listContainer.setLayout(new BoxLayout(this.listContainer, BoxLayout.Y_AXIS));
@@ -91,6 +64,8 @@ public class PinsTabBuilder {
         backButton.setBackground(ColorPalette.BUTTON_PRIMARY);
         backButton.setForeground(ColorPalette.TEXT_LIGHT);
         backButton.setFocusPainted(false);
+        backButton.setOpaque(true);
+        backButton.setBorderPainted(false);
         backButton.addActionListener(e -> {
             this.applicationCore.getToolState().setSelectedPinIndex(null);
             if(this.applicationCore.onPinSelectionChanged != null) this.applicationCore.onPinSelectionChanged.run();
@@ -145,7 +120,8 @@ public class PinsTabBuilder {
             row.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
             row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
 
-            JLabel nameLabel = new JLabel(pin.getTitle());
+            String shareIcon = pin.isShared() ? " (Shared)" : "";
+            JLabel nameLabel = new JLabel(pin.getTitle() + shareIcon);
             nameLabel.setForeground(ColorPalette.TEXT_LIGHT);
             row.add(nameLabel, BorderLayout.CENTER);
 
@@ -155,12 +131,18 @@ public class PinsTabBuilder {
             JButton jumpBtn = new JButton("Jump");
             jumpBtn.setBackground(ColorPalette.BUTTON_PRIMARY);
             jumpBtn.setForeground(ColorPalette.TEXT_LIGHT);
+            jumpBtn.setFocusPainted(false);
+            jumpBtn.setOpaque(true);
+            jumpBtn.setBorderPainted(false);
             jumpBtn.setMargin(new Insets(2, 5, 2, 5));
             jumpBtn.addActionListener(e -> this.jumpToPin(pin, index));
 
             JButton editBtn = new JButton("Open Notes");
             editBtn.setBackground(ColorPalette.BUTTON_WARNING);
             editBtn.setForeground(ColorPalette.TEXT_LIGHT);
+            editBtn.setFocusPainted(false);
+            editBtn.setOpaque(true);
+            editBtn.setBorderPainted(false);
             editBtn.setMargin(new Insets(2, 5, 2, 5));
             editBtn.addActionListener(e -> {
                 this.applicationCore.getToolState().setSelectedPinIndex(index);
@@ -171,6 +153,9 @@ public class PinsTabBuilder {
             JButton deleteBtn = new JButton("X");
             deleteBtn.setBackground(ColorPalette.BUTTON_DANGER);
             deleteBtn.setForeground(ColorPalette.TEXT_LIGHT);
+            deleteBtn.setFocusPainted(false);
+            deleteBtn.setOpaque(true);
+            deleteBtn.setBorderPainted(false);
             deleteBtn.setMargin(new Insets(2, 5, 2, 5));
             deleteBtn.addActionListener(e -> {
                 this.applicationCore.getDataState().getMapPins().remove(pin);
@@ -208,7 +193,6 @@ public class PinsTabBuilder {
         titleField.setBackground(ColorPalette.INPUT_BACKGROUND);
         titleField.setForeground(ColorPalette.TEXT_LIGHT);
 
-        // Use abstract class implementation instead of lambda
         titleField.getDocument().addDocumentListener(new SimpleDocumentListener() {
             @Override
             public void update() {
@@ -237,6 +221,26 @@ public class PinsTabBuilder {
         colorPanel.add(colorPicker);
         this.detailsContainer.add(colorPanel);
 
+        JPanel sharePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        sharePanel.setBackground(ColorPalette.BACKGROUND_DARK);
+        JLabel shareLabel = new JLabel("Visible to Players:");
+        shareLabel.setForeground(ColorPalette.TEXT_LIGHT);
+
+        JCheckBox shareBox = new JCheckBox();
+        shareBox.setBackground(ColorPalette.BACKGROUND_DARK);
+        shareBox.setFocusPainted(false);
+        shareBox.setSelected(pin.isShared());
+        shareBox.addActionListener(e -> {
+            if(!this.isUpdatingProgrammatically) {
+                pin.setShared(shareBox.isSelected());
+                this.applicationCore.refreshDisplay();
+            }
+        });
+
+        sharePanel.add(shareLabel);
+        sharePanel.add(shareBox);
+        this.detailsContainer.add(sharePanel);
+
         JLabel notesLabel = new JLabel("Secret DM Notes:");
         notesLabel.setForeground(ColorPalette.TEXT_LIGHT);
         this.detailsContainer.add(notesLabel);
@@ -249,7 +253,6 @@ public class PinsTabBuilder {
         notesArea.setForeground(ColorPalette.TEXT_LIGHT);
         notesArea.setFont(new Font("SansSerif", Font.PLAIN, 14));
 
-        // Use abstract class implementation instead of lambda
         notesArea.getDocument().addDocumentListener(new SimpleDocumentListener() {
             @Override
             public void update() {
@@ -280,7 +283,6 @@ public class PinsTabBuilder {
         this.applicationCore.refreshDisplay();
     }
 
-    // Abstract class rather than an interface to allow valid instantiation
     private abstract class SimpleDocumentListener implements DocumentListener {
         public abstract void update();
         @Override public void insertUpdate(DocumentEvent e) { update(); }

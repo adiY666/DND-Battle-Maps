@@ -42,6 +42,8 @@ public class ToolState {
     private Coordinate pointerStart = null;
     private Coordinate pointerEnd = null;
 
+    private boolean showSharedPinsOnPlayerScreen = false;
+
     public ToolState() {
         super();
         this.currentTool = ToolType.TOKEN;
@@ -220,4 +222,13 @@ public class ToolState {
     public void setPointerEnd(Coordinate pointerEnd) {
         this.pointerEnd = pointerEnd;
     }
+
+    public boolean isShowSharedPinsOnPlayerScreen() {
+        return this.showSharedPinsOnPlayerScreen;
+    }
+
+    public void setShowSharedPinsOnPlayerScreen(boolean showSharedPinsOnPlayerScreen) {
+        this.showSharedPinsOnPlayerScreen = showSharedPinsOnPlayerScreen;
+    }
+
 }

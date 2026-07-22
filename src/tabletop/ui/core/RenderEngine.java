@@ -156,10 +156,8 @@ public class RenderEngine {
             }
         }
 
-        // 6. Draw Map Pins (ONLY IF THIS IS THE DM'S SCREEN)
-        if(!isPlayerScreen) {
-            this.drawPins(vectorGraphics, dataState, toolState, cellDimension);
-        }
+        // 6. Draw Map Pins
+        this.drawPins(vectorGraphics, dataState, toolState, cellDimension, isPlayerScreen);
 
         // 7. Draw the Pointing Arrow (Top Layer)
         this.drawPointer(vectorGraphics, dataState, toolState);
@@ -262,18 +260,24 @@ public class RenderEngine {
         }
     }
 
-    private void drawPins(Graphics2D vectorGraphics, DataState dataState, ToolState toolState, double cellDimension) {
-        java.util.List<PinModel> pins = dataState.getMapPins();
+    private void drawPins(Graphics2D vectorGraphics, DataState dataState, ToolState toolState, double cellDimension, boolean isPlayerScreen) {
+        List<PinModel> pins = dataState.getMapPins();
         for(int i = 0; i < pins.size(); i++) {
             PinModel pin = pins.get(i);
-            Coordinate screenPos = dataState.convertLogicalToScreen(pin.getPositionHorizontal(), pin.getPositionVertical());
 
+            // --- NEW VISIBILITY LOGIC ---
+            // If we are drawing on the Player's screen, ONLY draw it if the global
+            // share toggle is ON and this specific pin is marked as shared.
+            if (isPlayerScreen && (!toolState.isShowSharedPinsOnPlayerScreen() || !pin.isShared())) {
+                continue; // Skip rendering this pin!
+            }
+
+            Coordinate screenPos = dataState.convertLogicalToScreen(pin.getPositionHorizontal(), pin.getPositionVertical());
             int pinX = (int) screenPos.getCoordinateHorizontal();
             int pinY = (int) screenPos.getCoordinateVertical();
 
             Color pinColor = this.colorUtility.retrieveColor(pin.getPinColor());
 
-            // Draw the Map Pin Marker body
             vectorGraphics.setColor(pinColor);
             vectorGraphics.fillOval(pinX - RenderConstants.PIN_RADIUS, pinY - RenderConstants.PIN_DIAMETER, RenderConstants.PIN_DIAMETER, RenderConstants.PIN_DIAMETER);
             vectorGraphics.fillPolygon(
@@ -281,7 +285,6 @@ public class RenderEngine {
                     new int[]{pinY - RenderConstants.PIN_RADIUS, pinY - RenderConstants.PIN_RADIUS, pinY},
                     3);
 
-            // Draw the Map Pin Marker outline
             vectorGraphics.setColor(Color.BLACK);
             vectorGraphics.setStroke(new BasicStroke(RenderConstants.STROKE_PIN_OUTLINE));
             vectorGraphics.drawOval(pinX - RenderConstants.PIN_RADIUS, pinY - RenderConstants.PIN_DIAMETER, RenderConstants.PIN_DIAMETER, RenderConstants.PIN_DIAMETER);
@@ -290,15 +293,11 @@ public class RenderEngine {
                     new int[]{pinY - RenderConstants.PIN_RADIUS, pinY - RenderConstants.PIN_RADIUS, pinY},
                     3);
 
-            // Draw Highlight AND Title if Selected
             if(java.util.Objects.equals(toolState.getSelectedPinIndex(), i)) {
-
-                // Highlight ring
                 vectorGraphics.setColor(RenderConstants.COLOR_HIGHLIGHT);
                 vectorGraphics.setStroke(new BasicStroke(RenderConstants.STROKE_THICK));
                 vectorGraphics.drawOval(pinX - RenderConstants.PIN_HIGHLIGHT_RADIUS, pinY - (RenderConstants.PIN_DIAMETER + RenderConstants.PIN_HIGHLIGHT_OFFSET), RenderConstants.PIN_HIGHLIGHT_DIAMETER, RenderConstants.PIN_HIGHLIGHT_DIAMETER);
 
-                // Hovering Title
                 vectorGraphics.setFont(new Font("SansSerif", Font.BOLD, RenderConstants.PIN_TITLE_FONT_SIZE));
                 FontMetrics metrics = vectorGraphics.getFontMetrics();
                 int textWidth = metrics.stringWidth(pin.getTitle());
