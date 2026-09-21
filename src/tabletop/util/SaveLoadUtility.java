@@ -31,15 +31,21 @@ public class SaveLoadUtility {
         try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
             DataState dataState = (DataState) in.readObject();
 
-            // Re-load images for tokens because BufferedImage cannot be serialized
             if (dataState.getActiveTokens() != null) {
                 for (TokenModel token : dataState.getActiveTokens().values()) {
-                    // Fixed: using getImageFilepath() to match the model
                     if (token.getImageFilepath() != null) {
-                        try {
-                            token.setOriginalImage(ImageIO.read(new File(token.getImageFilepath())));
-                        } catch (Exception ex) {
-                            System.out.println("Warning: Could not reload image for " + token.getDisplayName());
+
+                        // ---> NEW: Check if it is a Code-Generated Token <---
+                        if (token.getImageFilepath().startsWith("[DEFAULT]")) {
+                            token.setOriginalImage(TokenGenerator.generate(token.getDisplayName()));
+                        }
+                        // Otherwise, load it from the computer normally
+                        else {
+                            try {
+                                token.setOriginalImage(ImageIO.read(new File(token.getImageFilepath())));
+                            } catch (Exception ex) {
+                                System.out.println("Warning: Could not reload image for " + token.getDisplayName());
+                            }
                         }
                     }
                 }

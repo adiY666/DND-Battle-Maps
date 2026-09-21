@@ -13,6 +13,7 @@ import tabletop.model.TokenModel;
 import tabletop.ui.theme.ColorPalette;
 import tabletop.ui.core.PlayerFrame;
 import tabletop.util.SaveLoadUtility;
+import tabletop.util.TokenGenerator;
 
 /**
  * Builds the top main menu toolbar.
@@ -76,9 +77,8 @@ public class ToolbarBuilder {
             }
         });
 
-        // --- NEW: Blackout Button instead of a ToggleSwitch ---
         JButton blackoutBtn = new JButton("Toggle Blackout");
-        this.styleButton(blackoutBtn, ColorPalette.BUTTON_WARNING);
+        this.styleButton(blackoutBtn, ColorPalette.BUTTON_DANGER);
         blackoutBtn.addActionListener(e -> {
             boolean isCurrentlyBlackedOut = this.applicationCore.getToolState().isPlayerScreenBlackout();
             this.applicationCore.getToolState().setPlayerScreenBlackout(!isCurrentlyBlackedOut);
@@ -150,34 +150,70 @@ public class ToolbarBuilder {
     }
 
     private void handleTokenAdd() {
-        JFileChooser fileChooser = new JFileChooser();
-        if(fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
-            try {
-                String imagePath = fileChooser.getSelectedFile().getAbsolutePath();
-                java.awt.image.BufferedImage originalImage = ImageIO.read(new File(imagePath));
-                String characterName = JOptionPane.showInputDialog("Enter character's name:", "Miniature");
-                if(characterName == null) characterName = "Mini";
+        Object[] options = {"Import Image File", "Basic Default Token", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(this.applicationCore.getMainFrame(),
+                "How would you like to create this miniature?",
+                "Add Miniature",
+                JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[1]);
 
-                DataState dataState = this.applicationCore.getDataState();
-                Coordinate logicalPosition = dataState.convertScreenToLogical(this.applicationCore.getCanvasPanel().getWidth() / 2, this.applicationCore.getCanvasPanel().getHeight() / 2);
+        if (choice == 2 || choice == JOptionPane.CLOSED_OPTION) {
+            return;
+        }
 
-                int newIdentifier = dataState.getNextTokenIdentifier();
-                dataState.setNextTokenIdentifier(newIdentifier + 1);
+        try {
+            String imagePath = "";
+            java.awt.image.BufferedImage originalImage = null;
+            String characterName = "";
 
-                TokenModel tokenModel = new TokenModel(newIdentifier, characterName, logicalPosition.getCoordinateHorizontal(), logicalPosition.getCoordinateVertical(), imagePath);
-                tokenModel.setOriginalImage(originalImage);
-                dataState.getActiveTokens().put(newIdentifier, tokenModel);
-                dataState.getTokenOrdering().add(newIdentifier);
-
-                this.applicationCore.getToolState().setSelectedTokenIdentifier(newIdentifier);
-                this.applicationCore.refreshDisplay();
-
-                if(this.applicationCore.onTokenListChanged != null) this.applicationCore.onTokenListChanged.run();
-                if(this.applicationCore.onSelectionChanged != null) this.applicationCore.onSelectionChanged.run();
-
-            } catch(Exception exception) {
-                exception.printStackTrace();
+            if (choice == 0) {
+                JFileChooser fileChooser = new JFileChooser();
+                if(fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
+                    imagePath = fileChooser.getSelectedFile().getAbsolutePath();
+                    originalImage = ImageIO.read(new File(imagePath));
+                    characterName = JOptionPane.showInputDialog("Enter character's name:");
+                } else {
+                    return;
+                }
             }
+            else if (choice == 1) {
+                characterName = JOptionPane.showInputDialog("Enter character's name:");
+                if(characterName == null || characterName.trim().isEmpty()) {
+                    characterName = "Mini";
+                }
+
+                imagePath = "[DEFAULT]";
+                originalImage = TokenGenerator.generate(characterName);
+            }
+
+            if(characterName == null || characterName.trim().isEmpty()) {
+                characterName = "Mini";
+            }
+
+            DataState dataState = this.applicationCore.getDataState();
+            Coordinate logicalPosition = dataState.convertScreenToLogical(this.applicationCore.getCanvasPanel().getWidth() / 2, this.applicationCore.getCanvasPanel().getHeight() / 2);
+
+            int newIdentifier = dataState.getNextTokenIdentifier();
+            dataState.setNextTokenIdentifier(newIdentifier + 1);
+
+            TokenModel tokenModel = new TokenModel(newIdentifier, characterName, logicalPosition.getCoordinateHorizontal(), logicalPosition.getCoordinateVertical(), imagePath);
+            tokenModel.setOriginalImage(originalImage);
+
+            dataState.getActiveTokens().put(newIdentifier, tokenModel);
+            dataState.getTokenOrdering().add(newIdentifier);
+
+            this.applicationCore.getToolState().setSelectedTokenIdentifier(newIdentifier);
+            this.applicationCore.refreshDisplay();
+
+            if(this.applicationCore.onTokenListChanged != null) this.applicationCore.onTokenListChanged.run();
+            if(this.applicationCore.onSelectionChanged != null) this.applicationCore.onSelectionChanged.run();
+
+        } catch(Exception exception) {
+            exception.printStackTrace();
+            JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Error adding token. Check console for details.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }
