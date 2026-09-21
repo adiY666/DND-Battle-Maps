@@ -94,6 +94,11 @@ public class RenderEngine {
             TokenModel token = dataState.getActiveTokens().get(tokenId);
             if(token == null) continue;
 
+            // ---> NEW: Skip rendering this token entirely if it is hidden on the Player Screen <---
+            if (isPlayerScreen && !token.isVisibleToPlayers()) {
+                continue;
+            }
+
             Coordinate screenPos = dataState.convertLogicalToScreen(token.getPositionHorizontal(), token.getPositionVertical());
             double tokenPixelSize = token.getGridScale() * cellDimension;
 
@@ -125,6 +130,12 @@ public class RenderEngine {
                 vectorGraphics.setColor(RenderConstants.COLOR_HIGHLIGHT);
                 vectorGraphics.setStroke(new BasicStroke(RenderConstants.STROKE_THICK));
                 vectorGraphics.drawRect((int) screenPos.getCoordinateHorizontal(), (int) screenPos.getCoordinateVertical(), (int) tokenPixelSize, (int) tokenPixelSize);
+            }
+
+            // Draw a quick indicator for the DM if the token is hidden
+            if(!isPlayerScreen && !token.isVisibleToPlayers()) {
+                vectorGraphics.setColor(new Color(255, 0, 0, 150));
+                vectorGraphics.fillOval((int) screenPos.getCoordinateHorizontal() + (int) tokenPixelSize - 15, (int) screenPos.getCoordinateVertical(), 15, 15);
             }
 
             // Draw Token Name
@@ -265,11 +276,8 @@ public class RenderEngine {
         for(int i = 0; i < pins.size(); i++) {
             PinModel pin = pins.get(i);
 
-            // --- NEW VISIBILITY LOGIC ---
-            // If we are drawing on the Player's screen, ONLY draw it if the global
-            // share toggle is ON and this specific pin is marked as shared.
             if (isPlayerScreen && (!toolState.isShowSharedPinsOnPlayerScreen() || !pin.isShared())) {
-                continue; // Skip rendering this pin!
+                continue;
             }
 
             Coordinate screenPos = dataState.convertLogicalToScreen(pin.getPositionHorizontal(), pin.getPositionVertical());

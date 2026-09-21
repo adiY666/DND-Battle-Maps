@@ -149,8 +149,10 @@ public class TokensTabBuilder {
             row.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
             row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
 
-            JLabel nameLabel = new JLabel(token.getDisplayName());
-            nameLabel.setForeground(ColorPalette.TEXT_LIGHT);
+            // Small indicator in the list if hidden
+            String nameText = token.getDisplayName() + (token.isVisibleToPlayers() ? "" : " (Hidden)");
+            JLabel nameLabel = new JLabel(nameText);
+            nameLabel.setForeground(token.isVisibleToPlayers() ? ColorPalette.TEXT_LIGHT : Color.GRAY);
             row.add(nameLabel, BorderLayout.CENTER);
 
             JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
@@ -285,6 +287,20 @@ public class TokensTabBuilder {
                 });
                 this.detailsContainer.add(toggleRangeBtn);
                 this.detailsContainer.add(Box.createRigidArea(new Dimension(0, 5)));
+
+                // ---> NEW: The button to toggle visibility for players <---
+                JButton visibilityBtn = new JButton(token.isVisibleToPlayers() ? "👁 Visible to Players" : "🚫 Hidden from Players");
+                visibilityBtn.setBackground(token.isVisibleToPlayers() ? ColorPalette.BUTTON_SUCCESS : ColorPalette.BUTTON_DANGER);
+                visibilityBtn.setForeground(ColorPalette.TEXT_LIGHT);
+                visibilityBtn.addActionListener(e -> {
+                    token.setVisibleToPlayers(!token.isVisibleToPlayers());
+                    this.refreshTokensList();
+                    this.refreshDetailsPanel();
+                    this.applicationCore.refreshDisplay();
+                });
+                this.detailsContainer.add(visibilityBtn);
+                this.detailsContainer.add(Box.createRigidArea(new Dimension(0, 5)));
+
 
                 JButton addEffectBtn = new JButton("+ Add Effect");
                 addEffectBtn.setBackground(ColorPalette.BUTTON_WARNING);
