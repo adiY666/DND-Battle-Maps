@@ -29,9 +29,12 @@ public class InteractionController extends MouseAdapter {
     private boolean isDrawing = false;
     private boolean isErasing = false;
     private boolean isPointing = false;
+
+    // Changed to a boolean because we now track multiple dragged tokens inside ToolState
+    private boolean isDraggingTokenGroup = false;
+
     private double panStartHorizontal;
     private double panStartVertical;
-    private Integer draggingTokenIdentifier = null;
     private Integer draggingTemplateIdentifier = null;
     private Integer draggingPinIndex = null;
 
@@ -55,8 +58,9 @@ public class InteractionController extends MouseAdapter {
         ToolState toolState = this.applicationCore.getToolState();
         Coordinate logicalPos = dataState.convertScreenToLogical(mouseEvent.getX(), mouseEvent.getY());
 
-        Integer tokenId = toolState.getSelectedTokenIdentifier();
-        if(tokenId != null) {
+        // Only show range hover calculations if EXACTLY ONE token is selected
+        if(toolState.getSelectedTokenIdentifiers().size() == 1) {
+            Integer tokenId = toolState.getSelectedTokenIdentifiers().iterator().next();
             TokenModel token = dataState.getActiveTokens().get(tokenId);
             if(token != null && token.isShowMovementRange()) {
                 double targetX = dataState.isSnapToGrid() ? Math.floor(logicalPos.getCoordinateHorizontal()) : logicalPos.getCoordinateHorizontal() - (token.getGridScale() / 2.0);
@@ -81,16 +85,10 @@ public class InteractionController extends MouseAdapter {
         }
     }
 
-    /**
-     * Helper method to ensure the previous token's range turns off when selecting something else.
-     */
-    private void turnOffCurrentTokenRange() {
-        Integer currentId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
-        if (currentId != null) {
-            TokenModel token = this.applicationCore.getDataState().getActiveTokens().get(currentId);
-            if (token != null) {
-                token.setShowMovementRange(false);
-            }
+    private void turnOffCurrentTokenRanges() {
+        for(Integer id : this.applicationCore.getToolState().getSelectedTokenIdentifiers()) {
+            TokenModel token = this.applicationCore.getDataState().getActiveTokens().get(id);
+            if(token != null) token.setShowMovementRange(false);
         }
     }
 
@@ -102,10 +100,10 @@ public class InteractionController extends MouseAdapter {
         // 1. Can we select a Map Pin?
         Integer pinHit = this.findPinAt(logicalPosition);
         if(pinHit != null) {
-            this.turnOffCurrentTokenRange();
+            this.turnOffCurrentTokenRanges();
 
             toolState.setSelectedPinIndex(pinHit);
-            toolState.setSelectedTokenIdentifier(null);
+            toolState.getSelectedTokenIdentifiers().clear();
             toolState.setSelectedTemplateIdentifier(null);
             this.draggingPinIndex = pinHit;
             this.panStartHorizontal = mouseEvent.getX();
@@ -117,7 +115,7 @@ public class InteractionController extends MouseAdapter {
         }
 
         if(toolState.getCurrentTool() == ToolType.DRAWING) {
-            this.turnOffCurrentTokenRange();
+            this.turnOffCurrentTokenRanges();
 
             if(toolState.getDrawingSubtool() == null || toolState.getDrawingSubtool() == DrawingSubtool.PEN) {
                 this.isDrawing = true;
@@ -135,7 +133,7 @@ public class InteractionController extends MouseAdapter {
         }
 
         if(toolState.getCurrentTool() == ToolType.TEMPLATE) {
-            this.turnOffCurrentTokenRange();
+            this.turnOffCurrentTokenRanges();
 
             Integer hitTemplate = this.findTemplateAt(logicalPosition);
             if(hitTemplate != null) {
@@ -169,10 +167,10 @@ public class InteractionController extends MouseAdapter {
         // 2. Can we select a Ruler?
         Integer hitTemplate = this.findTemplateAt(logicalPosition);
         if(hitTemplate != null) {
-            this.turnOffCurrentTokenRange();
+            this.turnOffCurrentTokenRanges();
 
             toolState.setSelectedTemplateIdentifier(hitTemplate);
-            toolState.setSelectedTokenIdentifier(null);
+            toolState.getSelectedTokenIdentifiers().clear();
             toolState.setSelectedPinIndex(null);
             this.draggingTemplateIdentifier = hitTemplate;
             this.panStartHorizontal = mouseEvent.getX();
@@ -185,37 +183,52 @@ public class InteractionController extends MouseAdapter {
         // 3. Can we select a Token?
         Integer tokenHit = this.findTokenAt(logicalPosition);
         if(tokenHit != null) {
-            // If clicking a different token, ensure the old one's range shuts off
-            Integer prevId = toolState.getSelectedTokenIdentifier();
-            if (prevId != null && !prevId.equals(tokenHit)) {
-                this.turnOffCurrentTokenRange();
+            boolean isShiftDown = mouseEvent.isShiftDown();
+
+            if (isShiftDown) {
+                // Toggle selection state of this specific token
+                if (toolState.getSelectedTokenIdentifiers().contains(tokenHit)) {
+                    toolState.getSelectedTokenIdentifiers().remove(tokenHit);
+                } else {
+                    toolState.getSelectedTokenIdentifiers().add(tokenHit);
+                }
+            } else {
+                // Standard click: If clicking a token not already in the group, clear and select only this one.
+                if (!toolState.getSelectedTokenIdentifiers().contains(tokenHit)) {
+                    this.turnOffCurrentTokenRanges();
+                    toolState.getSelectedTokenIdentifiers().clear();
+                    toolState.getSelectedTokenIdentifiers().add(tokenHit);
+                }
             }
 
-            toolState.setSelectedTokenIdentifier(tokenHit);
             toolState.setSelectedTemplateIdentifier(null);
             toolState.setSelectedPinIndex(null);
-            this.draggingTokenIdentifier = tokenHit;
+            this.isDraggingTokenGroup = true;
             this.panStartHorizontal = mouseEvent.getX();
             this.panStartVertical = mouseEvent.getY();
 
-            // Automatically turn on the range circle for the newly selected miniature
-            TokenModel token = dataState.getActiveTokens().get(tokenHit);
-            if(token != null) token.setShowMovementRange(true);
+            // Automatically turn on the range circle ONLY if a single token is selected
+            if (toolState.getSelectedTokenIdentifiers().size() == 1) {
+                TokenModel token = dataState.getActiveTokens().get(toolState.getSelectedTokenIdentifiers().iterator().next());
+                if(token != null) token.setShowMovementRange(true);
+            } else {
+                this.turnOffCurrentTokenRanges();
+            }
 
             this.triggerAllSelectionCallbacks();
             this.applicationCore.refreshDisplay();
             return;
         }
 
-        // 4. Jump token to space (If range is active AND we are using the Token tool)
-        Integer selectedId = toolState.getSelectedTokenIdentifier();
-        if(selectedId != null && toolState.getCurrentTool() == ToolType.TOKEN) {
+        // 4. Jump token to space (If range is active AND exactly one token is selected)
+        if(toolState.getSelectedTokenIdentifiers().size() == 1 && toolState.getCurrentTool() == ToolType.TOKEN) {
+            Integer selectedId = toolState.getSelectedTokenIdentifiers().iterator().next();
             TokenModel token = dataState.getActiveTokens().get(selectedId);
+
             if(token != null && token.isShowMovementRange()) {
                 double targetX = dataState.isSnapToGrid() ? Math.floor(logicalPosition.getCoordinateHorizontal()) : logicalPosition.getCoordinateHorizontal() - (token.getGridScale() / 2.0);
                 double targetY = dataState.isSnapToGrid() ? Math.floor(logicalPosition.getCoordinateVertical()) : logicalPosition.getCoordinateVertical() - (token.getGridScale() / 2.0);
 
-                // Calculate distance from token center to target center for precise range checks
                 double tokenCenterX = token.getPositionHorizontal() + (token.getGridScale() / 2.0);
                 double tokenCenterY = token.getPositionVertical() + (token.getGridScale() / 2.0);
                 double targetCenterX = targetX + (token.getGridScale() / 2.0);
@@ -232,9 +245,8 @@ public class InteractionController extends MouseAdapter {
         }
 
         // 5. Clicked nothing. Deselect everything and pan map.
-        this.turnOffCurrentTokenRange();
-
-        toolState.setSelectedTokenIdentifier(null);
+        this.turnOffCurrentTokenRanges();
+        toolState.getSelectedTokenIdentifiers().clear();
         toolState.setSelectedTemplateIdentifier(null);
         toolState.setSelectedPinIndex(null);
 
@@ -282,17 +294,23 @@ public class InteractionController extends MouseAdapter {
             this.panStartHorizontal = mouseEvent.getX();
             this.panStartVertical = mouseEvent.getY();
             this.applicationCore.refreshDisplay();
-        } else if(this.draggingTokenIdentifier != null) {
-            TokenModel token = dataState.getActiveTokens().get(this.draggingTokenIdentifier);
-            if(token != null) {
-                double deltaX = (mouseEvent.getX() - this.panStartHorizontal) / dataState.calculateCellDimension();
-                double deltaY = (mouseEvent.getY() - this.panStartVertical) / dataState.calculateCellDimension();
-                token.setPositionHorizontal(token.getPositionHorizontal() + deltaX);
-                token.setPositionVertical(token.getPositionVertical() + deltaY);
-                this.panStartHorizontal = mouseEvent.getX();
-                this.panStartVertical = mouseEvent.getY();
-                this.applicationCore.refreshDisplay();
+
+        } else if(this.isDraggingTokenGroup) {
+            // Drag EVERY selected token
+            double deltaX = (mouseEvent.getX() - this.panStartHorizontal) / dataState.calculateCellDimension();
+            double deltaY = (mouseEvent.getY() - this.panStartVertical) / dataState.calculateCellDimension();
+
+            for (Integer id : this.applicationCore.getToolState().getSelectedTokenIdentifiers()) {
+                TokenModel token = dataState.getActiveTokens().get(id);
+                if(token != null) {
+                    token.setPositionHorizontal(token.getPositionHorizontal() + deltaX);
+                    token.setPositionVertical(token.getPositionVertical() + deltaY);
+                }
             }
+            this.panStartHorizontal = mouseEvent.getX();
+            this.panStartVertical = mouseEvent.getY();
+            this.applicationCore.refreshDisplay();
+
         } else if(this.draggingTemplateIdentifier != null) {
             for(TemplateModel tm : dataState.getActiveTemplates()) {
                 if(tm.getIdentifier() == this.draggingTemplateIdentifier) {
@@ -307,7 +325,6 @@ public class InteractionController extends MouseAdapter {
                 }
             }
         } else if(this.draggingPinIndex != null) {
-            // Drag Map Pin
             PinModel pin = dataState.getMapPins().get(this.draggingPinIndex);
             double deltaX = (mouseEvent.getX() - this.panStartHorizontal) / dataState.calculateCellDimension();
             double deltaY = (mouseEvent.getY() - this.panStartVertical) / dataState.calculateCellDimension();
@@ -343,7 +360,8 @@ public class InteractionController extends MouseAdapter {
                     if(dist < 0.1) {
                         Integer tokenHit = this.findTokenAt(start);
                         if(tokenHit != null) {
-                            toolState.setSelectedTokenIdentifier(tokenHit);
+                            toolState.getSelectedTokenIdentifiers().clear();
+                            toolState.getSelectedTokenIdentifiers().add(tokenHit);
                             if(this.applicationCore.onSelectionChanged != null) this.applicationCore.onSelectionChanged.run();
                             this.applicationCore.refreshDisplay();
                             JPopupMenu contextMenu = new JPopupMenu();
@@ -362,14 +380,19 @@ public class InteractionController extends MouseAdapter {
         this.isDrawing = false;
         this.isErasing = false;
 
-        if(this.draggingTokenIdentifier != null) {
+        if(this.isDraggingTokenGroup) {
             DataState dataState = this.applicationCore.getDataState();
-            TokenModel token = dataState.getActiveTokens().get(this.draggingTokenIdentifier);
-            if(token != null && dataState.isSnapToGrid()) {
-                token.setPositionHorizontal(Math.floor(token.getPositionHorizontal() + 0.5));
-                token.setPositionVertical(Math.floor(token.getPositionVertical() + 0.5));
+
+            if(dataState.isSnapToGrid()) {
+                for (Integer id : this.applicationCore.getToolState().getSelectedTokenIdentifiers()) {
+                    TokenModel token = dataState.getActiveTokens().get(id);
+                    if(token != null) {
+                        token.setPositionHorizontal(Math.floor(token.getPositionHorizontal() + 0.5));
+                        token.setPositionVertical(Math.floor(token.getPositionVertical() + 0.5));
+                    }
+                }
             }
-            this.draggingTokenIdentifier = null;
+            this.isDraggingTokenGroup = false;
             this.applicationCore.refreshDisplay();
         }
 
@@ -456,7 +479,6 @@ public class InteractionController extends MouseAdapter {
         DataState dataState = this.applicationCore.getDataState();
         for(int i = dataState.getMapPins().size() - 1; i >= 0; i--) {
             PinModel pin = dataState.getMapPins().get(i);
-            // Pins are small, so click radius is half a grid square
             double dist = Math.hypot(pin.getPositionHorizontal() - logicalPosition.getCoordinateHorizontal(), pin.getPositionVertical() - logicalPosition.getCoordinateVertical());
             if(dist <= 0.5) return i;
         }

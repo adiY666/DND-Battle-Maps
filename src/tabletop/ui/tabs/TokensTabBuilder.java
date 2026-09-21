@@ -56,7 +56,7 @@ public class TokensTabBuilder {
         clearButton.addActionListener(event -> {
             this.applicationCore.getDataState().getActiveTokens().clear();
             this.applicationCore.getDataState().getTokenOrdering().clear();
-            this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
+            this.applicationCore.getToolState().getSelectedTokenIdentifiers().clear();
             this.applicationCore.refreshDisplay();
             this.refreshTokensList();
             this.refreshDetailsPanel();
@@ -80,6 +80,7 @@ public class TokensTabBuilder {
         this.listContainer.setLayout(new BoxLayout(this.listContainer, BoxLayout.Y_AXIS));
         this.listContainer.setBackground(ColorPalette.BACKGROUND_DARK);
         JScrollPane listScroll = new JScrollPane(this.listContainer);
+        listScroll.getVerticalScrollBar().setUnitIncrement(16);
         listScroll.setBorder(null);
         listWrapper.add(listScroll, BorderLayout.CENTER);
 
@@ -94,7 +95,7 @@ public class TokensTabBuilder {
         backButton.setFocusPainted(false);
         backButton.addActionListener(e -> {
             // Turn off range before deselecting
-            Integer selectedId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
+            Integer selectedId = this.applicationCore.getToolState().getSelectedTokenIdentifiers().isEmpty() ? null : this.applicationCore.getToolState().getSelectedTokenIdentifiers().iterator().next();
             if (selectedId != null) {
                 TokenModel token = this.applicationCore.getDataState().getActiveTokens().get(selectedId);
                 if (token != null) {
@@ -102,7 +103,7 @@ public class TokensTabBuilder {
                 }
             }
 
-            this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
+            this.applicationCore.getToolState().getSelectedTokenIdentifiers().clear();
             if(this.applicationCore.onSelectionChanged != null) {
                 this.applicationCore.onSelectionChanged.run();
             }
@@ -188,7 +189,7 @@ public class TokensTabBuilder {
 
     public void refreshDetailsPanel() {
         this.detailsContainer.removeAll();
-        Integer selectedId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
+        Integer selectedId = this.applicationCore.getToolState().getSelectedTokenIdentifiers().isEmpty() ? null : this.applicationCore.getToolState().getSelectedTokenIdentifiers().iterator().next();
 
         if(selectedId == null) {
             this.cardLayout.show(this.mainCardPanel, "LIST");
@@ -411,17 +412,17 @@ public class TokensTabBuilder {
         dataState.setPanHorizontal(targetX);
         dataState.setPanVertical(targetY);
 
-        // Turn off old token range before selecting new one
-        Integer prevSelectedId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
+        Integer prevSelectedId = this.applicationCore.getToolState().getSelectedTokenIdentifiers().isEmpty() ? null : this.applicationCore.getToolState().getSelectedTokenIdentifiers().iterator().next();
         if (prevSelectedId != null && !prevSelectedId.equals(token.getIdentifier())) {
             TokenModel prevToken = this.applicationCore.getDataState().getActiveTokens().get(prevSelectedId);
             if (prevToken != null) prevToken.setShowMovementRange(false);
         }
 
-        // ---> NEW: Automatically turn on range for the newly jumped-to token! <---
         token.setShowMovementRange(true);
 
-        this.applicationCore.getToolState().setSelectedTokenIdentifier(token.getIdentifier());
+        this.applicationCore.getToolState().getSelectedTokenIdentifiers().clear();
+        this.applicationCore.getToolState().getSelectedTokenIdentifiers().add(token.getIdentifier());
+
         if(this.applicationCore.onSelectionChanged != null) {
             this.applicationCore.onSelectionChanged.run();
         }
@@ -534,8 +535,8 @@ public class TokensTabBuilder {
             dataState.getActiveTokens().remove(token.getIdentifier());
             dataState.getTokenOrdering().remove((Integer) token.getIdentifier());
 
-            if(java.util.Objects.equals(this.applicationCore.getToolState().getSelectedTokenIdentifier(), token.getIdentifier())) {
-                this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
+            if(this.applicationCore.getToolState().getSelectedTokenIdentifiers().contains(token.getIdentifier())) {
+                this.applicationCore.getToolState().getSelectedTokenIdentifiers().remove(token.getIdentifier());
                 if(this.applicationCore.onSelectionChanged != null) {
                     this.applicationCore.onSelectionChanged.run();
                 }

@@ -45,7 +45,7 @@ public class ToolbarBuilder {
         this.styleButton(loadMapBtn, ColorPalette.BUTTON_PRIMARY);
         loadMapBtn.addActionListener(e -> this.handleLoadMap());
 
-        JButton addMiniBtn = new JButton("Add Miniature");
+        JButton addMiniBtn = new JButton("Add Miniature(s)");
         this.styleButton(addMiniBtn, ColorPalette.BUTTON_PRIMARY);
         addMiniBtn.addActionListener(e -> this.handleTokenAdd());
 
@@ -124,7 +124,7 @@ public class ToolbarBuilder {
             if (loadedState != null) {
                 this.applicationCore.setDataState(loadedState);
 
-                this.applicationCore.getToolState().setSelectedTokenIdentifier(null);
+                this.applicationCore.getToolState().getSelectedTokenIdentifiers().clear();
                 this.applicationCore.getToolState().setSelectedPinIndex(null);
                 this.applicationCore.getToolState().setSelectedTemplateIdentifier(null);
 
@@ -150,9 +150,14 @@ public class ToolbarBuilder {
     }
 
     private void handleTokenAdd() {
-        Object[] options = {"Import Image File", "Basic Default Token", "Cancel"};
+        Object[] options = {"Import Image File(s)", "Basic Default Token", "Cancel"};
+
+        // --- NEW: Added instructions directly to the popup dialog ---
+        String message = "How would you like to create miniature(s)?\n\n" +
+                "(Tip: When importing image files, hold Ctrl or Shift to select multiple images at once!)";
+
         int choice = JOptionPane.showOptionDialog(this.applicationCore.getMainFrame(),
-                "How would you like to create this miniature?",
+                message,
                 "Add Miniature",
                 JOptionPane.YES_NO_CANCEL_OPTION,
                 JOptionPane.QUESTION_MESSAGE,
@@ -165,55 +170,76 @@ public class ToolbarBuilder {
         }
 
         try {
-            String imagePath = "";
-            java.awt.image.BufferedImage originalImage = null;
-            String characterName = "";
+            DataState dataState = this.applicationCore.getDataState();
+            Coordinate centerPosition = dataState.convertScreenToLogical(this.applicationCore.getCanvasPanel().getWidth() / 2, this.applicationCore.getCanvasPanel().getHeight() / 2);
+
+            this.applicationCore.getToolState().getSelectedTokenIdentifiers().clear();
 
             if (choice == 0) {
                 JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setMultiSelectionEnabled(true);
+
+                // --- NEW: Added instructions to the top bar of the file chooser window ---
+                fileChooser.setDialogTitle("Select Image(s) - Hold Ctrl or Shift to select multiple");
+
                 if(fileChooser.showOpenDialog(this.applicationCore.getMainFrame()) == JFileChooser.APPROVE_OPTION) {
-                    imagePath = fileChooser.getSelectedFile().getAbsolutePath();
-                    originalImage = ImageIO.read(new File(imagePath));
-                    characterName = JOptionPane.showInputDialog("Enter character's name:");
+                    File[] selectedFiles = fileChooser.getSelectedFiles();
+                    double dropOffset = 0;
+
+                    for (File file : selectedFiles) {
+                        String imagePath = file.getAbsolutePath();
+                        java.awt.image.BufferedImage originalImage = ImageIO.read(new File(imagePath));
+
+                        String characterName = file.getName();
+                        if (characterName.lastIndexOf('.') > 0) {
+                            characterName = characterName.substring(0, characterName.lastIndexOf('.'));
+                        }
+
+                        int newIdentifier = dataState.getNextTokenIdentifier();
+                        dataState.setNextTokenIdentifier(newIdentifier + 1);
+
+                        TokenModel tokenModel = new TokenModel(newIdentifier, characterName, centerPosition.getCoordinateHorizontal() + dropOffset, centerPosition.getCoordinateVertical() + dropOffset, imagePath);
+                        tokenModel.setOriginalImage(originalImage);
+
+                        dataState.getActiveTokens().put(newIdentifier, tokenModel);
+                        dataState.getTokenOrdering().add(newIdentifier);
+
+                        this.applicationCore.getToolState().getSelectedTokenIdentifiers().add(newIdentifier);
+
+                        dropOffset += 0.5;
+                    }
                 } else {
                     return;
                 }
             }
             else if (choice == 1) {
-                characterName = JOptionPane.showInputDialog("Enter character's name:");
+                String characterName = JOptionPane.showInputDialog("Enter character's name:");
                 if(characterName == null || characterName.trim().isEmpty()) {
                     characterName = "Mini";
                 }
 
-                imagePath = "[DEFAULT]";
-                originalImage = TokenGenerator.generate(characterName);
+                String imagePath = "[DEFAULT]";
+                java.awt.image.BufferedImage originalImage = TokenGenerator.generate(characterName);
+
+                int newIdentifier = dataState.getNextTokenIdentifier();
+                dataState.setNextTokenIdentifier(newIdentifier + 1);
+
+                TokenModel tokenModel = new TokenModel(newIdentifier, characterName, centerPosition.getCoordinateHorizontal(), centerPosition.getCoordinateVertical(), imagePath);
+                tokenModel.setOriginalImage(originalImage);
+
+                dataState.getActiveTokens().put(newIdentifier, tokenModel);
+                dataState.getTokenOrdering().add(newIdentifier);
+
+                this.applicationCore.getToolState().getSelectedTokenIdentifiers().add(newIdentifier);
             }
 
-            if(characterName == null || characterName.trim().isEmpty()) {
-                characterName = "Mini";
-            }
-
-            DataState dataState = this.applicationCore.getDataState();
-            Coordinate logicalPosition = dataState.convertScreenToLogical(this.applicationCore.getCanvasPanel().getWidth() / 2, this.applicationCore.getCanvasPanel().getHeight() / 2);
-
-            int newIdentifier = dataState.getNextTokenIdentifier();
-            dataState.setNextTokenIdentifier(newIdentifier + 1);
-
-            TokenModel tokenModel = new TokenModel(newIdentifier, characterName, logicalPosition.getCoordinateHorizontal(), logicalPosition.getCoordinateVertical(), imagePath);
-            tokenModel.setOriginalImage(originalImage);
-
-            dataState.getActiveTokens().put(newIdentifier, tokenModel);
-            dataState.getTokenOrdering().add(newIdentifier);
-
-            this.applicationCore.getToolState().setSelectedTokenIdentifier(newIdentifier);
             this.applicationCore.refreshDisplay();
-
             if(this.applicationCore.onTokenListChanged != null) this.applicationCore.onTokenListChanged.run();
             if(this.applicationCore.onSelectionChanged != null) this.applicationCore.onSelectionChanged.run();
 
         } catch(Exception exception) {
             exception.printStackTrace();
-            JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Error adding token. Check console for details.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this.applicationCore.getMainFrame(), "Error adding token(s). Check console for details.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

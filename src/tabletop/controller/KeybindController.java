@@ -46,10 +46,10 @@ public class KeybindController implements KeyEventDispatcher {
         }
 
         if (e.getKeyCode() == KeyEvent.VK_R) {
-            Integer selectedTokenId = this.applicationCore.getToolState().getSelectedTokenIdentifier();
+            Integer selectedId = this.applicationCore.getToolState().getSelectedTokenIdentifiers().isEmpty() ? null : this.applicationCore.getToolState().getSelectedTokenIdentifiers().iterator().next();
 
-            if (selectedTokenId != null) {
-                TokenModel token = this.applicationCore.getDataState().getActiveTokens().get(selectedTokenId);
+            if (selectedId != null) {
+                TokenModel token = this.applicationCore.getDataState().getActiveTokens().get(selectedId);
                 if (token != null) {
                     token.setShowMovementRange(!token.isShowMovementRange());
                     this.applicationCore.refreshDisplay();

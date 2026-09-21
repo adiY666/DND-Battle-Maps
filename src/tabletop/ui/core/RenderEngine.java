@@ -121,7 +121,7 @@ public class RenderEngine {
             }
 
             // Draw Selected Highlight
-            if(java.util.Objects.equals(toolState.getSelectedTokenIdentifier(), token.getIdentifier())) {
+            if(toolState.getSelectedTokenIdentifiers().contains(token.getIdentifier())) {
                 vectorGraphics.setColor(RenderConstants.COLOR_HIGHLIGHT);
                 vectorGraphics.setStroke(new BasicStroke(RenderConstants.STROKE_THICK));
                 vectorGraphics.drawRect((int) screenPos.getCoordinateHorizontal(), (int) screenPos.getCoordinateVertical(), (int) tokenPixelSize, (int) tokenPixelSize);
